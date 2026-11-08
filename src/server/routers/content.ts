@@ -214,7 +214,8 @@ export const webhookRouter = createTRPCRouter({
       try {
         const res = await fetch(endpoint.url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Verso-Event": "ping", "X-Verso-Sign": sign },
+          // Единый формат подписи с fireWebhooks (entry.ts): sha256=<hex тела>.
+          headers: { "Content-Type": "application/json", "X-Verso-Event": "ping", "X-Verso-Sign": `sha256=${sign}` },
           body: payload,
         });
         return { ok: res.ok, status: res.status };
