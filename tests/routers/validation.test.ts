@@ -53,7 +53,9 @@ describe("input validation contracts", () => {
     const c = caller("MANAGER", { $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)) });
     const out = await c.entry.update({ id: "e1", scheduledFor: new Date("2026-05-01T10:00:00.000Z").toISOString() }) as unknown as Record<string, unknown>;
     expect(out).toMatchObject({ id: "e1" });
-    expect(findUnique).not.toHaveBeenCalled();
+    // findUnique вызывается ровно 1 раз: чтение базовой строки для скоупа slug.
+    // Без expectedUpdatedAt отдельного запроса версии нет.
+    expect(findUnique).toHaveBeenCalledTimes(1);
   });
 
   it("collection.create: пустое name -> ошибка", async () => {

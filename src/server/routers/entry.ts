@@ -183,18 +183,35 @@ export const entryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, changeNote, scheduledFor, expectedUpdatedAt, ...rest } = input;
       return ctx.prisma.$transaction(async (tx) => {
+        // Base row for FK-free checks below (collection scope + optimistic lock).
+        const current = await tx.entry.findUnique({
+          where: { id },
+          select: { updatedAt: true, collectionId: true, slug: true },
+        });
+        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Entry not found" });
         if (expectedUpdatedAt) {
-          const current = await tx.entry.findUnique({ where: { id }, select: { updatedAt: true } });
-          if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
           if (new Date(current.updatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()) {
             throw new TRPCError({
               code: "CONFLICT",
-              message: "Запись изменена другим пользователем. Обновите страницу и повторите.",
+              message: "Entry was modified by another user. Reload and retry.",
             });
           }
         }
         const data: Record<string, unknown> = { ...rest };
-        if (rest.slug) data.slug = slugify(rest.slug);
+        if (rest.slug) {
+          // Same-entry slug stays untouched; чужой занятый slug получает суффикс.
+          const base = slugify(rest.slug) || current.slug;
+          let candidate = base;
+          for (let i = 0; i < 100; i++) {
+            const clash = await tx.entry.findUnique({
+              where: { collectionId_slug: { collectionId: current.collectionId, slug: candidate } },
+              select: { id: true },
+            });
+            if (!clash || (clash as { id: string }).id === id) break;
+            candidate = `${base}-${i + 2}`;
+          }
+          data.slug = candidate;
+        }
         if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
         const updated = await tx.entry.update({ where: { id }, data: data as never, include: { blocks: true } });
         const count = await tx.revision.count({ where: { entryId: id } });
