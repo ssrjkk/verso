@@ -55,6 +55,7 @@ describe("RBAC: реальные процедуры, без БД", () => {
     await expect(c.entry.publish({ id: "e1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(c.media.remove({ id: "m1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(c.seo.upsertRedirect({ fromPath: "/a", toPath: "/b" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(c.entry.remove({ id: "e1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("MANAGER: контент OK, ADMIN-зона -> FORBIDDEN", async () => {
@@ -65,6 +66,7 @@ describe("RBAC: реальные процедуры, без БД", () => {
     await expect(c.collection.create({ name: "N" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(c.apiKey.create({ name: "k" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(c.media.remove({ id: "m1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(c.entry.remove({ id: "e1" })).resolves.toEqual({ ok: true });
   });
 
   it("ADMIN: всё OK", async () => {
