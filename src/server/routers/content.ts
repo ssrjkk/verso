@@ -160,7 +160,7 @@ export const apiKeyRouter = createTRPCRouter({
     ctx.prisma.apiKey.delete({ where: { id: input.id } }),
   ),
   updateExpiry: adminProcedure
-    .input(z.object({ id: z.string(), expiresAt: z.string().nullable() }))
+    .input(z.object({ id: z.string(), expiresAt: z.string().nullable().refine((v) => v === null || !Number.isNaN(Date.parse(v as string)), { message: 'Invalid date' }) }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.apiKey.update({
         where: { id: input.id },
@@ -170,6 +170,9 @@ export const apiKeyRouter = createTRPCRouter({
 });
 
 // wire into appRouter as webhook
+const KNOWN_WEBHOOK_EVENTS = ["entry.published", "entry.updated"] as const;
+type WebhookEvent = (typeof KNOWN_WEBHOOK_EVENTS)[number];
+
 export const webhookRouter = createTRPCRouter({
   list: adminProcedure.query(({ ctx }) =>
     ctx.prisma.webhookEndpoint.findMany({ orderBy: { createdAt: "desc" } }),
@@ -179,7 +182,10 @@ export const webhookRouter = createTRPCRouter({
       name: z.string().min(1).max(200),
       url: z.string().url(),
       secret: z.string().min(1).max(500),
-      events: z.string().max(500).default("entry.published,entry.updated"),
+      events: z.string().max(500).default("entry.published,entry.updated")
+      .refine((v) => v.split(",").map((s) => s.trim()).filter(Boolean).every((s) => KNOWN_WEBHOOK_EVENTS.includes(s as WebhookEvent)), {
+        message: "Unknown event. Allowed: entry.published, entry.updated",
+      }),
       isActive: z.boolean().default(true),
     }))
     .mutation(({ ctx, input }) => ctx.prisma.webhookEndpoint.create({ data: input })),
@@ -189,7 +195,9 @@ export const webhookRouter = createTRPCRouter({
       name: z.string().min(1).max(200).optional(),
       url: z.string().url().optional(),
       secret: z.string().min(1).max(500).optional(),
-      events: z.string().max(500).optional(),
+      events: z.string().max(500).optional().refine((v) => v === undefined || v.split(",").map((s) => s.trim()).filter(Boolean).every((s) => KNOWN_WEBHOOK_EVENTS.includes(s as WebhookEvent)), {
+      message: "Unknown event. Allowed: entry.published, entry.updated",
+    }),
     }))
     .mutation(({ ctx, input }) => {
       const { id, ...data } = input;

@@ -10,8 +10,11 @@ function user(role: Role) {
 // Минимальный мок призмы: только то, что трогают тестируемые процедуры.
 function mockPrisma() {
   const tx = {
-    entry: { create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "e1", ...a.data })) },
-    revision: { create: vi.fn(async () => ({})) },
+    entry: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "e1", ...a.data })),
+    },
+    revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
     activityLog: { create: vi.fn(async () => ({})) },
   };
   return {
@@ -23,6 +26,7 @@ function mockPrisma() {
     },
     collection: {
       findMany: vi.fn(async () => []),
+      findUnique: vi.fn(async () => null),
       create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "c1", ...a.data })),
       delete: vi.fn(async () => ({})),
     },

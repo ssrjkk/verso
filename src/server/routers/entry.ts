@@ -31,6 +31,27 @@ async function fireWebhooks(prisma: { webhookEndpoint: { findMany: (a: unknown) 
   }
 }
 
+// Свободный slug внутри коллекции: дубль названия получает -2, -3, …,
+// Free slug within a collection: duplicates get -2, -3, ... instead of P2002.
+// Residual races are retried by the caller (see entry.create retry loop).
+async function uniqueEntrySlug(
+  prisma: {
+    entry: { findUnique: (a: unknown) => Promise<unknown> };
+  },
+  collectionId: string,
+  base: string,
+): Promise<string> {
+  const root = slugify(base) || "entry";
+  for (let i = 0; i < 100; i++) {
+    const candidate = i === 0 ? root : `${root}-${i + 1}`;
+    const exists = await prisma.entry.findUnique({
+      where: { collectionId_slug: { collectionId, slug: candidate } },
+    });
+    if (!exists) return candidate;
+  }
+  throw new TRPCError({ code: "CONFLICT", message: "Не удалось подобрать свободный slug" });
+}
+
 export const entryRouter = createTRPCRouter({
   list: protectedProcedure
     .input(
@@ -91,8 +112,14 @@ export const entryRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const finalSlug = input.slug ? slugify(input.slug) : slugify(input.title);
-      return ctx.prisma.$transaction(async (tx) => {
+      const base = input.slug ? slugify(input.slug) : slugify(input.title);
+      // Retry on P2002: two parallel creates may pick the same free slug
+      // before either commits; the loser recomputes and retries (max 5).
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          return await ctx.prisma.$transaction(async (tx) => {
+        const finalSlug = await uniqueEntrySlug(tx as never, input.collectionId, base);
         const entry = await tx.entry.create({
           data: {
             collectionId: input.collectionId,
@@ -117,7 +144,16 @@ export const entryRouter = createTRPCRouter({
           data: { entryId: entry.id, userId: ctx.user.id, action: "CREATED", comment: `Создана запись «${entry.title}»` },
         });
         return entry;
-      });
+          });
+        } catch (e) {
+          if ((e as { code?: string }).code === 'P2002' && attempt < 4) {
+            lastError = e;
+            continue;
+          }
+          throw e;
+        }
+      }
+      throw lastError;
     }),
 
   update: editorProcedure

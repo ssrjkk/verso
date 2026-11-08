@@ -1,7 +1,23 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
 import { toCsv, parseCsv, sanitizeCsvCell } from "@/lib/csv";
+
+// Свободный slug с автосуффиксом (-2, -3, …): дубль названия не должен
+// ронять создание P2002, а молча получать уникальный slug.
+async function uniqueCollectionSlug(
+  prisma: { collection: { findUnique: (a: unknown) => Promise<unknown> } },
+  base: string,
+): Promise<string> {
+  const root = slugify(base) || "collection";
+  for (let i = 0; i < 100; i++) {
+    const candidate = i === 0 ? root : `${root}-${i + 1}`;
+    const exists = await prisma.collection.findUnique({ where: { slug: candidate } });
+    if (!exists) return candidate;
+  }
+  throw new TRPCError({ code: "CONFLICT", message: "Не удалось подобрать свободный slug" });
+}
 
 export const collectionRouter = createTRPCRouter({
   list: protectedProcedure
@@ -29,17 +45,33 @@ export const collectionRouter = createTRPCRouter({
         schemaJson: z.string().max(200_000).default("[]"),
       }),
     )
-    .mutation(({ ctx, input }) =>
-      ctx.prisma.collection.create({
-        data: {
-          name: input.name,
-          slug: input.slug ? slugify(input.slug) : slugify(input.name),
-          description: input.description,
-          icon: input.icon,
-          schemaJson: input.schemaJson,
-        },
-      }),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      // Retry on P2002 like entry.create: recompute a free slug and retry.
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const slug = input.slug
+            ? await uniqueCollectionSlug(ctx.prisma as never, input.slug)
+            : await uniqueCollectionSlug(ctx.prisma as never, input.name);
+          return await ctx.prisma.collection.create({
+            data: {
+              name: input.name,
+              slug,
+              description: input.description,
+              icon: input.icon,
+              schemaJson: input.schemaJson,
+            },
+          });
+        } catch (e) {
+          if ((e as { code?: string }).code === 'P2002' && attempt < 4) {
+            lastError = e;
+            continue;
+          }
+          throw e;
+        }
+      }
+      throw lastError;
+    }),
   update: adminProcedure
     .input(z.object({ id: z.string(), name: z.string().min(1).max(200).optional(), description: z.string().max(2000).optional(), schemaJson: z.string().max(200_000).optional() }))
     .mutation(({ ctx, input }) =>
