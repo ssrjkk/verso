@@ -159,7 +159,6 @@ test("гонка: два админа не могут понизить друг 
         list = await users(editor.request);
       }
       const adminRow = list.find((u) => u.id === adminId);
-      const editorRow = list.find((u) => u.id === editorId);
       if (adminRow && adminRow.role !== "ADMIN") {
         const fix = await setRole(editor.request, adminId, "ADMIN");
         expect(fix.op.error).toBeUndefined();

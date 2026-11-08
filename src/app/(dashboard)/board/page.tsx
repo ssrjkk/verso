@@ -145,7 +145,7 @@ export default function BoardPage() {
       });
       return { prev };
     },
-    onError: (err, _input, ctx) => {
+    onError: (_err, _input, ctx) => {
       if (ctx?.prev) utils.workflow.stages.setData(undefined, ctx.prev);
     },
     onSettled: () => {
