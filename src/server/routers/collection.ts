@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
 import { toCsv, parseCsv, sanitizeCsvCell } from "@/lib/csv";
 
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 // Свободный slug с автосуффиксом (-2, -3, …): дубль названия не должен
 // ронять создание P2002, а молча получать уникальный slug.
 async function uniqueCollectionSlug(
-  prisma: { collection: { findUnique: (a: unknown) => Promise<unknown> } },
+  prisma: Pick<DbClient, "collection">,
   base: string,
 ): Promise<string> {
   const root = slugify(base) || "collection";
@@ -51,8 +54,8 @@ export const collectionRouter = createTRPCRouter({
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
           const slug = input.slug
-            ? await uniqueCollectionSlug(ctx.prisma as never, input.slug)
-            : await uniqueCollectionSlug(ctx.prisma as never, input.name);
+            ? await uniqueCollectionSlug(ctx.prisma, input.slug)
+            : await uniqueCollectionSlug(ctx.prisma, input.name);
           return await ctx.prisma.collection.create({
             data: {
               name: input.name,

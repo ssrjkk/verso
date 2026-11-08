@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "description": "Verso — editorial headless CMS and page builder (Next.js, tRPC, Prisma, Better Auth)",
   "repository": {
     "type": "git",

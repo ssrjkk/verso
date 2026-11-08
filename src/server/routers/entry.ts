@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, editorProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
 import { fireWebhooks } from "@/lib/webhook";
 
 const Status = z.enum(["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"]);
 
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 // Свободный slug внутри коллекции: дубль названия получает -2, -3, …,
 // Free slug within a collection: duplicates get -2, -3, ... instead of P2002.
 // Residual races are retried by the caller (see entry.create retry loop).
 async function uniqueEntrySlug(
-  prisma: {
-    entry: { findUnique: (a: unknown) => Promise<unknown> };
-  },
+  prisma: Pick<DbClient, "entry">,
   collectionId: string,
   base: string,
 ): Promise<string> {
@@ -100,7 +101,7 @@ export const entryRouter = createTRPCRouter({
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
           return await ctx.prisma.$transaction(async (tx) => {
-        const finalSlug = await uniqueEntrySlug(tx as never, input.collectionId, base);
+        const finalSlug = await uniqueEntrySlug(tx, input.collectionId, base);
         const entry = await tx.entry.create({
           data: {
             collectionId: input.collectionId,
@@ -172,7 +173,9 @@ export const entryRouter = createTRPCRouter({
             });
           }
         }
-        const data: Record<string, unknown> = { ...rest };
+        // Поведение идентично прежнему `{ ...rest }`: копируем только поля ввода
+        // (scheduledFor/expectedUpdatedAt вынесены), slug/ scheduledFor обрабатываются ниже.
+        const data = { ...rest } as Prisma.EntryUpdateInput;
         if (rest.slug) {
           // Свой slug не трогаем; чужой занятый получает суффикс -2, -3, ...
           const base = slugify(rest.slug) || current.slug;
@@ -182,19 +185,19 @@ export const entryRouter = createTRPCRouter({
               where: { collectionId_slug: { collectionId: current.collectionId, slug: candidate } },
               select: { id: true },
             });
-            if (!clash || (clash as { id: string }).id === id) break;
+            if (!clash || clash.id === id) break;
             candidate = `${base}-${i + 2}`;
           }
           data.slug = candidate;
         }
         if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
-        const updated = await tx.entry.update({ where: { id }, data: data as never, include: { blocks: true } });
+        const updated = await tx.entry.update({ where: { id }, data, include: { blocks: true } });
         const count = await tx.revision.count({ where: { entryId: id } });
         await tx.revision.create({
           data: {
             entryId: id,
             version: count + 1,
-            snapshotJson: JSON.stringify({ entry: updated, blocks: (updated as { blocks: unknown }).blocks }),
+            snapshotJson: JSON.stringify({ entry: updated, blocks: updated.blocks }),
             changeNote: changeNote ?? "Обновление",
             authorId: ctx.user.id,
           },
@@ -202,7 +205,7 @@ export const entryRouter = createTRPCRouter({
         return updated;
       }).then((updated) => {
         // Сеть — только после коммита и без ожидания: публикация не блокируется.
-        const status = (updated as { status: string }).status;
+        const { status } = updated;
         fireWebhooks(
           ctx.prisma,
           status === "PUBLISHED" ? "entry.published" : "entry.updated",
