@@ -76,10 +76,31 @@ describe("input validation contracts", () => {
     await expect(caller().webhook.create({ name: "", url: "not-a-url", secret: "s" })).rejects.toThrow();
   });
 
-  it("seo.upsertRedirect: строки путей дергают upsert", async () => {
+  it("seo.upsertRedirect: строки путей дергают upsert в транзакции", async () => {
     const upsert = vi.fn(async () => ({ id: "r1" }));
-    await caller("MANAGER", { redirect: { upsert } }).seo.upsertRedirect({ fromPath: "/old", toPath: "/new" });
+    const tx = { redirect: { findMany: vi.fn(async () => []), upsert } };
+    const prisma = {
+      redirect: { findMany: vi.fn() },
+      $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+    };
+    await caller("MANAGER", prisma).seo.upsertRedirect({ fromPath: "/old", toPath: "/new" });
     expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("seo.upsertRedirect: open redirect отклоняется до записи", async () => {
+    const upsert = vi.fn(async () => ({ id: "r1" }));
+    const tx = { redirect: { findMany: vi.fn(async () => []), upsert } };
+    const prisma = {
+      redirect: { findMany: vi.fn() },
+      $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+    };
+    await expect(
+      caller("MANAGER", prisma).seo.upsertRedirect({
+        fromPath: "/old",
+        toPath: "https://evil.example/x",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("entry.create: чужой collectionId/stageId -> NOT_FOUND, а не 500", async () => {

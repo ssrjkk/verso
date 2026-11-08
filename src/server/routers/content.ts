@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
+import { validateRedirect } from "@/lib/redirects";
 
 const WebhookUrl = z
   .string()
@@ -117,12 +118,28 @@ export const seoRouter = createTRPCRouter({
     ctx.prisma.redirect.findMany({ orderBy: { createdAt: "desc" } }),
   ),
   upsertRedirect: editorProcedure
-    .input(z.object({ fromPath: z.string(), toPath: z.string(), statusCode: z.number().default(301) }))
+    .input(
+      z.object({
+        fromPath: z.string().min(1).max(512),
+        toPath: z.string().min(1).max(2048),
+        statusCode: z.union([z.literal(301), z.literal(302)]).default(301),
+      }),
+    )
     .mutation(({ ctx, input }) =>
-      ctx.prisma.redirect.upsert({
-        where: { fromPath: input.fromPath },
-        create: input,
-        update: { toPath: input.toPath, statusCode: input.statusCode, isActive: true },
+      // Чтение активных рёбер и запись — в одной транзакции: два параллельных
+      // upsert'а не могут создать петлю или цепочку сверх лимита.
+      ctx.prisma.$transaction(async (tx) => {
+        const existing = await tx.redirect.findMany({
+          where: { isActive: true },
+          select: { fromPath: true, toPath: true },
+        });
+        const issue = validateRedirect(input.fromPath, input.toPath, existing);
+        if (issue) throw new TRPCError({ code: "BAD_REQUEST", message: issue });
+        return tx.redirect.upsert({
+          where: { fromPath: input.fromPath },
+          create: input,
+          update: { toPath: input.toPath, statusCode: input.statusCode, isActive: true },
+        });
       }),
     ),
   removeRedirect: adminProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>
@@ -132,11 +149,6 @@ export const seoRouter = createTRPCRouter({
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.redirect.update({ where: { id: input.id }, data: { isActive: input.isActive } }),
-    ),
-  incrementHit: editorProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) =>
-      ctx.prisma.redirect.update({ where: { id: input.id }, data: { hits: { increment: 1 } } }),
     ),
 });
 

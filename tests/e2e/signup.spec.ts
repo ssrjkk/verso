@@ -89,7 +89,9 @@ test("duplicate signup shows error, no redirect", async ({ browser }) => {
     await page.locator("#signup-email").fill("editor@verso.dev");
     await page.locator("#signup-password").fill("Test12345!");
     await page.locator("form button").first().click();
-    await expect(page.getByRole("alert")).toBeVisible({ timeout: 10000 });
+    // Точный текст вместо getByRole("alert"): в Next 16 role="alert" есть и у
+    // #__next-route-announcer__, из-за чего общий селектор флакает strict mode.
+    await expect(page.getByText("User already exists")).toBeVisible({ timeout: 10000 });
     await expect(page).toHaveURL(/sign-up/);
   } finally {
     await ctx.close();
