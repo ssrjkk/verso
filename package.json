@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Verso — editorial headless CMS and page builder (Next.js, tRPC, Prisma, Better Auth)",
+  "description": "Verso — editorial headless CMS and block page builder. Next.js 16, tRPC v11, Prisma 7 + SQLite, Better Auth.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ssrjkk/verso.git"
