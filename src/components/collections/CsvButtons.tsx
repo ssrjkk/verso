@@ -54,7 +54,7 @@ export function ExportButton({
         {busy ? "Экспорт…" : (label ?? "Экспорт CSV")}
       </button>
       {error && (
-        <span role="alert" aria-live="polite" className="text-xs text-red-500">
+        <span role="alert" aria-live="polite" className="text-xs text-red-600 dark:text-red-500">
           {error}
         </span>
       )}

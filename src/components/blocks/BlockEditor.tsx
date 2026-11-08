@@ -120,11 +120,11 @@ function JsonListEditor({
         aria-invalid={Boolean(error)}
         className={`${inputCls} font-mono text-xs ${error ? "border-red-500" : ""}`}
       />
-      {error ? <div id={errorId} role="alert" className="text-xs font-semibold text-red-500">{error}</div> : null}
+      {error ? <div id={errorId} role="alert" className="text-xs font-semibold text-red-600 dark:text-red-500">{error}</div> : null}
       <button
         type="button"
         onClick={apply}
-        className="self-start rounded-lg bg-[#f97316] px-4 py-1.5 text-xs font-bold text-white"
+        className="self-start rounded-lg bg-[#c2410c] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#9a3412]"
       >
         Применить JSON
       </button>

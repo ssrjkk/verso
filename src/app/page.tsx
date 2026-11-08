@@ -40,7 +40,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#f4f3fa] text-neutral-900 dark:bg-ink-950 dark:text-neutral-100">
       {/* Hero */}
       <header className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-10 pt-16 text-center sm:pt-24">
-        <p className="rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#ea580c] dark:text-[#fb923c]">
+        <p className="rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#9a3412] dark:text-[#fb923c]">
           Next.js 16 · Headless CMS · Page Builder
         </p>
         <h1 className="mt-6 font-display text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
@@ -54,7 +54,9 @@ export default function Home() {
         <div className="no-print mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard"
-            className="rounded-xl bg-[#f97316] px-6 py-3 font-semibold text-white transition hover:bg-[#ea580c] focus-visible:outline-none"
+            // Белый текст на фирменном #f97316 даёт 2.8:1 — ниже AA.
+            // Тёмный оттенок того же hue (#c2410c) держит 5.0:1.
+            className="rounded-xl bg-[#c2410c] px-6 py-3 font-semibold text-white transition hover:bg-[#9a3412] focus-visible:outline-none"
           >
             Открыть дашборд
           </Link>
@@ -73,7 +75,7 @@ export default function Home() {
           <h2 id="modules-heading" className="font-display text-xl font-extrabold sm:text-2xl">
             Шесть модулей из коробки
           </h2>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
             Всё нужное редакции, разработчику и маркетологу — без плагинов-костылей.
           </p>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
@@ -113,7 +115,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-black/10 py-5 dark:border-white/10">
-        <p className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-6 text-xs text-neutral-500 dark:text-neutral-500">
+        <p className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-6 text-xs text-neutral-600 dark:text-neutral-400">
           <span>
             Verso · редакционная система
           </span>

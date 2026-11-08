@@ -75,7 +75,7 @@ export default function SignInPage() {
         <button
           disabled={loading}
           aria-label={loading ? "Выполняется вход" : "Войти"}
-          className="rounded-xl bg-[#f97316] py-2.5 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-xl bg-[#c2410c] py-2.5 font-semibold text-white transition hover:bg-[#9a3412] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         >
           {loading ? "Входим…" : "Войти"}
         </button>

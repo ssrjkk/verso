@@ -81,11 +81,12 @@ function SortableBlockRow({
           {...attributes}
           {...listeners}
           title="Перетащить"
+          aria-label="Перетащить блок"
           className="cursor-grab rounded-lg border px-2 py-1 text-xs opacity-70 hover:opacity-100 active:cursor-grabbing"
         >
           ⋮⋮
         </button>
-        <span className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 text-xs font-bold text-[#f97316]">
+        <span className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">
           {BLOCK_TYPE_LABELS[block.type]} · #{index + 1}
         </span>
         {!block.isVisible ? (
@@ -111,7 +112,7 @@ function SortableBlockRow({
             type="button"
             onClick={onRemove}
             title="Удалить блок"
-            className="rounded-lg border px-2 py-1 text-xs text-red-500 hover:border-red-500"
+            className="rounded-lg border px-2 py-1 text-xs text-red-600 dark:text-red-500 hover:border-red-500"
           >
             ✕
           </button>
@@ -303,10 +304,10 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     return <div className="p-6 text-sm opacity-70">Загрузка конструктора…</div>;
   }
   if (entryQuery.isError) {
-    return <div className="p-6 text-sm text-red-500">Не удалось загрузить запись: {entryQuery.error.message}</div>;
+    return <div className="p-6 text-sm text-red-600 dark:text-red-500">Не удалось загрузить запись: {entryQuery.error.message}</div>;
   }
   if (blocksQuery.isError) {
-    return <div className="p-6 text-sm text-red-500">Не удалось загрузить блоки: {blocksQuery.error.message}</div>;
+    return <div className="p-6 text-sm text-red-600 dark:text-red-500">Не удалось загрузить блоки: {blocksQuery.error.message}</div>;
   }
   const entry = entryQuery.data;
   if (!entry) return <div className="p-6 text-sm opacity-70">Запись не найдена</div>;
@@ -317,7 +318,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-5">
       <div className="no-print flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Конструктор: {entry.title}</h1>
-        <span className="rounded-full bg-[#f97316]/12 px-3 py-1 text-xs font-bold text-[#f97316]">
+        <span className="rounded-full bg-[#f97316]/12 px-3 py-1 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">
           {STATUS_LABELS[entry.status] ?? entry.status}
         </span>
         <div className="ml-auto flex gap-2">
@@ -332,7 +333,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             type="button"
             onClick={handleSave}
             disabled={saveBlocks.isPending}
-            className="rounded-xl bg-[#f97316] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-xl bg-[#c2410c] px-5 py-2 text-sm font-bold text-white hover:bg-[#9a3412] disabled:opacity-50"
           >
             {saveBlocks.isPending ? "Сохранение…" : "Сохранить блоки"}
           </button>
@@ -426,7 +427,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             />
             <p id="seo-slug-hint" className="mt-1 text-xs opacity-60">
               Только латиница, цифры и дефисы (a-z, 0-9, -).
-              {!slugValid && <span role="alert" className="font-semibold text-red-500"> Некорректный slug.</span>}
+              {!slugValid && <span role="alert" className="font-semibold text-red-600 dark:text-red-500"> Некорректный slug.</span>}
             </p>
           </div>
           <label className="block sm:col-span-2" htmlFor="seo-excerpt">
@@ -486,7 +487,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={handleSeoSave}
             disabled={updateEntry.isPending || !slugValid}
             aria-busy={updateEntry.isPending}
-            className="rounded-xl border border-[#f97316] px-5 py-2 text-sm font-bold text-[#f97316] disabled:opacity-50"
+            className="rounded-xl border border-[#f97316] px-5 py-2 text-sm font-bold text-[#9a3412] hover:bg-[#f97316]/10 disabled:opacity-50 dark:text-[#f97316]"
           >
             {updateEntry.isPending ? "Сохранение…" : "Сохранить SEO"}
           </button>
@@ -495,7 +496,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={() => publishEntry.mutate({ id })}
             disabled={publishEntry.isPending}
             aria-busy={publishEntry.isPending}
-            className="rounded-xl bg-[#f97316] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-xl bg-[#c2410c] px-5 py-2 text-sm font-bold text-white hover:bg-[#9a3412] disabled:opacity-50"
           >
             {publishEntry.isPending ? "Публикация…" : "Опубликовать"}
           </button>
@@ -511,7 +512,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col gap-2">
             {revisions.map((r, idx) => (
               <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm">
-                <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-xs font-bold text-[#f97316]">v{r.version}</span>
+                <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">v{r.version}</span>
                 <span className="opacity-80">{r.changeNote ?? "Без комментария"}</span>
                 <span className="text-xs opacity-50" title={new Date(r.createdAt).toLocaleString("ru-RU")}>
                   {new Date(r.createdAt).toLocaleString("ru-RU")} · {relativeTime(r.createdAt)}

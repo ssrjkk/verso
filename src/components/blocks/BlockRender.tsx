@@ -48,7 +48,7 @@ function Hero(p: AnyRecord) {
   return (
     <section className="rounded-2xl border bg-gradient-to-br from-[#f97316]/10 via-transparent to-transparent p-8 text-center">
       {asString(p.eyebrow) ? (
-        <div className="mb-2 inline-block rounded-full border border-[#f97316]/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#f97316]">
+        <div className="mb-2 inline-block rounded-full border border-[#f97316]/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#9a3412] dark:text-[#fb923c]">
           {asString(p.eyebrow)}
         </div>
       ) : null}
@@ -59,7 +59,7 @@ function Hero(p: AnyRecord) {
       {asString(p.ctaLabel) ? (
         <a
           href={asSafeHref(p.ctaHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-[#f97316] px-6 py-2.5 text-sm font-semibold text-white"
+          className="mt-5 inline-block rounded-xl bg-[#c2410c] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#9a3412]"
         >
           {asString(p.ctaLabel)}
         </a>
@@ -100,7 +100,7 @@ function Pricing(p: AnyRecord) {
             <div className="flex items-center justify-between">
               <div className="font-display font-bold">{asString(pl.name, `Тариф ${i + 1}`)}</div>
               {pl.featured ? (
-                <span className="rounded-full bg-[#f97316] px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
+                <span className="rounded-full bg-[#c2410c] px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
               ) : null}
             </div>
             <div className="font-display mt-2 text-2xl font-extrabold">{asString(pl.price)}</div>
@@ -108,7 +108,7 @@ function Pricing(p: AnyRecord) {
             <ul className="mt-3 flex flex-col gap-1 text-sm">
               {asStringArray(pl.features).map((f, j) => (
                 <li key={j} className="flex gap-2">
-                  <span className="text-[#f97316]">✓</span>
+                  <span className="text-[#9a3412] dark:text-[#fb923c]" aria-hidden="true">✓</span>
                   <span>{f}</span>
                 </li>
               ))}
@@ -171,7 +171,7 @@ function Code(p: AnyRecord) {
     <section className="overflow-hidden rounded-2xl border">
       <div className="flex items-center justify-between border-b bg-black/5 px-4 py-2 dark:bg-white/5">
         <span className="text-xs font-semibold">{asString(p.title, "Код")}</span>
-        <span className="rounded bg-[#f97316]/15 px-2 py-0.5 font-mono text-xs text-[#f97316]">
+        <span className="rounded bg-[#f97316]/15 px-2 py-0.5 font-mono text-xs text-[#9a3412] dark:text-[#fb923c]">
           {asString(p.language, "text")}
         </span>
       </div>
@@ -184,13 +184,13 @@ function Code(p: AnyRecord) {
 
 function Cta(p: AnyRecord) {
   return (
-    <section className="rounded-2xl bg-[#f97316] p-8 text-center text-white">
+    <section className="rounded-2xl bg-[#c2410c] p-8 text-center text-white">
       <h3 className="font-display text-2xl font-extrabold">{asString(p.title, "Призыв к действию")}</h3>
-      {asString(p.text) ? <p className="mx-auto mt-2 max-w-lg text-sm text-white/85">{asString(p.text)}</p> : null}
+      {asString(p.text) ? <p className="mx-auto mt-2 max-w-lg text-sm text-white">{asString(p.text)}</p> : null}
       {asString(p.buttonLabel) ? (
         <a
           href={asSafeHref(p.buttonHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#f97316]"
+          className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#c2410c]"
         >
           {asString(p.buttonLabel)}
         </a>

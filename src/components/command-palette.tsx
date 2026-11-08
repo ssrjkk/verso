@@ -90,7 +90,7 @@ export function CommandPalette() {
     return (
       <button
         onClick={() => setOpen(true)}
-        aria-label="Открыть глобальный поиск (Ctrl+K)"
+        aria-label="Открыть глобальный поиск (Ctrl+K): ⌘K — поиск…"
         aria-haspopup="dialog"
         aria-expanded={false}
         className="w-full rounded-lg border bg-transparent px-3 py-2 text-left text-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"

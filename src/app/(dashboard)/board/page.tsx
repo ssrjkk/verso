@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -51,6 +52,9 @@ function KanbanCard({ card, stageId }: { card: Card; stageId: string }) {
       role="link"
       aria-label={`Открыть запись ${card.title}`}
       onKeyDown={(e) => {
+        // Не затираем listeners.onKeyDown: dnd-kit KeyboardSensor поднимает
+        // карточку по Space/Enter через тот же обработчик.
+        (listeners as { onKeyDown?: (ev: React.KeyboardEvent) => void } | undefined)?.onKeyDown?.(e);
         if (e.key === "Enter") router.push(`/entries/${card.id}`);
       }}
       onDoubleClick={() => router.push(`/entries/${card.id}`)}
@@ -59,7 +63,7 @@ function KanbanCard({ card, stageId }: { card: Card; stageId: string }) {
       <div className="font-semibold leading-snug">{card.title}</div>
       <div className="mt-1 text-xs opacity-60">{card.collection.name}</div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#f97316]">
+        <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#9a3412] dark:text-[#f97316]">
           {STATUS_LABELS[card.status] ?? card.status}
         </span>
         <span className="text-[11px] opacity-50">
@@ -93,7 +97,7 @@ function KanbanColumn({
       <div className="flex flex-col gap-2">
         {stage.entries.map((e) =>
           e.id === activeId ? (
-            <div key={e.id} className="rounded-xl border border-dashed border-[#f97316] p-2.5 text-xs opacity-50">
+            <div key={e.id} className="rounded-xl border border-dashed border-[#f97316] p-2.5 text-xs text-neutral-500 dark:text-neutral-400">
               {e.title}
             </div>
           ) : (
@@ -101,7 +105,7 @@ function KanbanColumn({
           ),
         )}
         {stage.entries.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-3 text-center text-xs opacity-50">
+          <div className="rounded-xl border border-dashed p-3 text-center text-xs text-neutral-500 dark:text-neutral-400">
             Перетащите карточку сюда
           </div>
         ) : null}
@@ -115,7 +119,12 @@ export default function BoardPage() {
   const stagesQuery = trpc.workflow.stages.useQuery();
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // KeyboardSensor: канбан доступен с клавиатуры (Tab → Space/Enter взять,
+  // стрелки — двигать, Space/Enter — положить, Esc — отмена).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   const move = trpc.entry.moveStage.useMutation({
     onMutate: async (input) => {
@@ -171,7 +180,7 @@ export default function BoardPage() {
     return (
       <div className="flex flex-col gap-3">
         <h1 className="font-display text-2xl font-extrabold">Редполитика (Kanban)</h1>
-        <div className="rounded-xl border border-red-300 p-4 text-sm text-red-500">
+        <div className="rounded-xl border border-red-300 p-4 text-sm text-red-600 dark:text-red-500">
           Не удалось загрузить этапы: {stagesQuery.error.message}
           <button
             type="button"
@@ -192,10 +201,10 @@ export default function BoardPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Редполитика (Kanban)</h1>
         <span className="text-xs opacity-60">Перетаскивайте карточки между колонками</span>
-        {move.isPending ? <span className="text-xs font-semibold text-[#f97316]">Перемещение…</span> : null}
+        {move.isPending ? <span className="text-xs font-semibold text-[#9a3412] dark:text-[#f97316]">Перемещение…</span> : null}
       </div>
       {move.isError ? (
-        <div className="rounded-xl border border-red-300 p-3 text-sm text-red-500">
+        <div className="rounded-xl border border-red-300 p-3 text-sm text-red-600 dark:text-red-500">
           Не удалось переместить: {move.error.message}
         </div>
       ) : null}

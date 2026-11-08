@@ -58,17 +58,17 @@ export default function SettingsPage() {
         )}
         <div className="flex flex-wrap gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название ключа…" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className="rounded-lg border bg-transparent px-2 py-2 text-sm">
+          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} aria-label="Область ключа" className="rounded-lg border bg-transparent px-2 py-2 text-sm">
             <option value="READ">READ</option>
             <option value="READ_WRITE">READ_WRITE</option>
           </select>
-          <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} className="rounded-lg border bg-transparent px-3 py-2 text-sm" title="Срок действия" />
+          <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Срок действия" className="rounded-lg border bg-transparent px-3 py-2 text-sm" title="Срок действия" />
           <button
             onClick={() => name && create.mutate(
               { name, scope, ...(expiry ? { expiresAt: new Date(expiry).toISOString() } : {}) },
               { onSuccess: (d) => { setLastRaw(d.raw); setName(""); setExpiry(""); } },
             )}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]"
           >
             Выпустить
           </button>
@@ -90,7 +90,7 @@ export default function SettingsPage() {
               >
                 Expiry
               </button>
-              <button onClick={() => { if (confirm(`Отозвать ${k.name}?`)) revoke.mutate({ id: k.id }); }} className="text-xs text-red-500">
+              <button onClick={() => { if (confirm(`Отозвать ${k.name}?`)) revoke.mutate({ id: k.id }); }} className="text-xs text-red-600 dark:text-red-500">
                 Отозвать
               </button>
             </span>
@@ -108,7 +108,7 @@ export default function SettingsPage() {
           <input value={whForm.events} onChange={(e) => setWhForm({ ...whForm, events: e.target.value })} placeholder="events csv" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
           <button
             onClick={() => whForm.name && whForm.url && whCreate.mutate(whForm)}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]"
           >
             Добавить
           </button>
@@ -121,7 +121,7 @@ export default function SettingsPage() {
                 {w.isActive ? "Выкл" : "Вкл"}
               </button>
               <button onClick={() => whTest.mutate({ id: w.id })} className="underline">Тест</button>
-              <button onClick={() => { if (confirm(`Удалить ${w.name}?`)) whRemove.mutate({ id: w.id }); }} className="text-red-500">
+              <button onClick={() => { if (confirm(`Удалить ${w.name}?`)) whRemove.mutate({ id: w.id }); }} className="text-red-600 dark:text-red-500">
                 Удалить
               </button>
             </span>
@@ -133,7 +133,7 @@ export default function SettingsPage() {
         <section className="flex flex-col gap-4" aria-label="Пользователи">
           <h2 className="font-display text-xl font-extrabold">Пользователи</h2>
           {userError && (
-            <p role="alert" className="rounded-xl border border-red-500/50 p-3 text-sm text-red-500">
+            <p role="alert" className="rounded-xl border border-red-500/50 p-3 text-sm text-red-600 dark:text-red-500">
               {userError}
             </p>
           )}

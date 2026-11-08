@@ -164,11 +164,11 @@ export default function CalendarPage() {
                 <button
                   key={i}
                   onClick={() => pickDay(d)}
-                  className={`min-h-[84px] rounded-xl border p-1.5 text-left text-xs ${
-                    inMonth ? "" : "opacity-40"
-                  } ${isSelected ? "border-[#f97316]" : ""} ${isToday ? "bg-[#f97316]/10" : ""} hover:border-[#f97316]`}
+                  className={`min-h-[84px] min-w-0 rounded-xl border p-1.5 text-left text-xs hover:border-[#f97316] ${
+                    inMonth ? "" : "text-neutral-600 dark:text-neutral-400"
+                  } ${isSelected ? "border-[#f97316]" : ""} ${isToday ? "bg-[#f97316]/10" : ""}`}
                 >
-                  <div className={`font-bold ${isToday ? "text-[#f97316]" : ""}`}>{d.getDate()}</div>
+                  <div className={`font-bold ${isToday ? "text-[#9a3412] dark:text-[#f97316]" : ""}`}>{d.getDate()}</div>
                   <div className="mt-1 flex flex-col gap-0.5">
                     {(items?.entries ?? []).slice(0, 2).map((e) => (
                       <span key={e.id} className="truncate rounded bg-emerald-500/15 px-1 py-0.5" title={e.title}>
@@ -199,7 +199,7 @@ export default function CalendarPage() {
           </div>
         </div>
         )}
-        <aside className="flex flex-col gap-3 rounded-2xl border p-4" aria-live="polite">
+        <aside className="flex min-w-0 flex-col gap-3 rounded-2xl border p-4" aria-live="polite">
           <h2 className="font-bold">
             {new Date(selected + "T00:00:00").toLocaleDateString("ru-RU", {
               weekday: "long",
@@ -239,7 +239,7 @@ export default function CalendarPage() {
                   onClick={() => { if (confirm(`Удалить задачу «${t.title}»?`)) removeTask.mutate({ id: t.id }); }}
                   aria-label={`Удалить задачу ${t.title}`}
                   title="Удалить задачу"
-                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-500/10"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-red-600 dark:text-red-500 hover:bg-red-500/10"
                 >
                   ✕
                 </button>
@@ -260,13 +260,15 @@ export default function CalendarPage() {
               type="date"
               value={taskDue}
               onChange={(e) => setTaskDue(e.target.value)}
+              aria-label="Дата задачи"
               className="rounded-lg border bg-transparent px-3 py-2 text-sm"
             />
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={taskEntryId}
                 onChange={(e) => setTaskEntryId(e.target.value)}
-                className="rounded-lg border bg-transparent px-2 py-2 text-sm"
+                aria-label="Запись задачи"
+                className="w-full min-w-0 rounded-lg border bg-transparent px-2 py-2 text-sm"
               >
                 <option value="">Без записи</option>
                 {allEntries.map((e) => (
@@ -278,7 +280,8 @@ export default function CalendarPage() {
               <select
                 value={taskPriority}
                 onChange={(e) => setTaskPriority(e.target.value as Priority)}
-                className="rounded-lg border bg-transparent px-2 py-2 text-sm"
+                aria-label="Приоритет задачи"
+                className="w-full min-w-0 rounded-lg border bg-transparent px-2 py-2 text-sm"
               >
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
@@ -290,7 +293,7 @@ export default function CalendarPage() {
             <button
               onClick={handleCreateTask}
               disabled={createTask.isPending || !taskTitle.trim()}
-              className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
             >
               {createTask.isPending ? "Создание…" : "Создать задачу"}
             </button>

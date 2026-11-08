@@ -78,14 +78,14 @@ export default function MediaPage() {
         </label>
         <span className="opacity-60">{uploading ? "Загрузка…" : "max 10MB · image/pdf/video"}</span>
       </div>
-      {error && <div className="rounded-xl border border-red-500 p-2 text-sm text-red-500">{error}</div>}
+      {error && <div className="rounded-xl border border-red-500 p-2 text-sm text-red-600 dark:text-red-500">{error}</div>}
 
       <div className="flex flex-wrap gap-2 text-sm">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск…" className="max-w-xs rounded-lg border bg-transparent px-3 py-1 text-sm" />
-        <select value={folder} onChange={(e) => setFolder(e.target.value)} className="rounded-lg border bg-transparent px-2 py-1">
+        <select value={folder} onChange={(e) => setFolder(e.target.value)} aria-label="Фильтр папки" className="rounded-lg border bg-transparent px-2 py-1">
           {FOLDERS.map((f) => <option key={f} value={f}>{f === "all" ? "Все папки" : f}</option>)}
         </select>
-        <select value={type} onChange={(e) => setType(e.target.value as typeof type)} className="rounded-lg border bg-transparent px-2 py-1">
+        <select value={type} onChange={(e) => setType(e.target.value as typeof type)} aria-label="Фильтр типа файла" className="rounded-lg border bg-transparent px-2 py-1">
           {TYPES.map((t) => <option key={t} value={t}>{t === "all" ? "Все типы" : t}</option>)}
         </select>
       </div>
@@ -130,7 +130,7 @@ export default function MediaPage() {
             </label>
             <button
               onClick={() => { if (confirm(`Удалить ${m.filename}?`)) remove.mutate({ id: m.id }); }}
-              className="mt-2 text-xs text-red-500"
+              className="mt-2 text-xs text-red-600 dark:text-red-500"
             >
               Удалить
             </button>

@@ -129,12 +129,12 @@ export default function CollectionsPage() {
         <p className="text-xs opacity-60">
           slug: <span className="font-mono">/{preview || "—"}</span>
         </p>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-500">{error}</p>}
         <div>
           <button
             onClick={handleCreate}
             disabled={create.isPending}
-            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
           >
             {create.isPending ? "Создание…" : "Создать"}
           </button>
@@ -168,7 +168,7 @@ export default function CollectionsPage() {
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-mono opacity-60">/{c.slug}</span>
               <span
-                className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 font-bold text-[#f97316]"
+                className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 font-bold text-[#9a3412] dark:text-[#f97316]"
                 aria-label={`Записей: ${c._count.entries}`}
               >
                 {c._count.entries} записей
@@ -192,12 +192,12 @@ export default function CollectionsPage() {
                   className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
                 />
                 <p className="font-mono text-xs opacity-60">slug: /{c.slug} (не изменяется)</p>
-                {editError && <p className="text-xs text-red-500">{editError}</p>}
+                {editError && <p className="text-xs text-red-600 dark:text-red-500">{editError}</p>}
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleSaveEdit(c.id)}
                     disabled={update.isPending}
-                    className="rounded-lg bg-[#f97316] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-lg bg-[#c2410c] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
                   >
                     {update.isPending ? "Сохранение…" : "Сохранить"}
                   </button>
@@ -227,7 +227,7 @@ export default function CollectionsPage() {
                 onClick={() => handleDelete(c.id, c.name)}
                 disabled={remove.isPending}
                 aria-label={`Удалить ${c.name}`}
-                className="rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                className="rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-600 dark:text-red-500 hover:bg-red-500/10 disabled:opacity-50"
               >
                 Удалить
               </button>

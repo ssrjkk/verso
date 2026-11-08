@@ -27,7 +27,6 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(dark ? "light" : "dark")}
-      aria-label={label}
       className="rounded-lg border px-3 py-1.5 text-sm"
     >
       Тема: {dark ? "тёмная" : "светлая"}

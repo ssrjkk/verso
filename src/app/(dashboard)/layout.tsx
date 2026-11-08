@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="no-print border-b border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-ink-900/60 md:flex md:min-h-screen md:flex-col md:gap-4 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between gap-3 md:block">
           <Link href="/" className="font-display text-xl font-extrabold" aria-label="Verso — на главную">
-            <span className="text-[#f97316]">Verso</span>
+            <span className="text-[#9a3412] dark:text-[#f97316]">Verso</span>
           </Link>
           <div className="md:hidden">
             <ThemeToggle />
@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10",
-                  isActive && "bg-[#f97316]/15 font-semibold text-[#f97316]",
+                  isActive && "bg-[#f97316]/15 font-semibold text-[#9a3412] dark:text-[#f97316]",
                 )}
               >
                 {n.label}
@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <UserMenu />
         </div>
       </aside>
-      <main id="content" tabIndex={-1} className="w-full max-w-6xl p-4 sm:p-6">
+      <main id="content" tabIndex={-1} className="w-full min-w-0 max-w-6xl p-4 sm:p-6">
         {children}
       </main>
     </div>

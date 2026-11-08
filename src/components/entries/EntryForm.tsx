@@ -83,7 +83,7 @@ export function EntryForm({
   const inputCls =
     "w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]";
   const labelCls = "text-xs font-semibold uppercase tracking-wide opacity-60";
-  const errCls = "text-xs text-red-500";
+  const errCls = "text-xs text-red-600 dark:text-red-500";
 
   const handleSave = async () => {
     setServerError(null);
@@ -238,14 +238,14 @@ export function EntryForm({
         </div>
       </div>
 
-      {serverError && <p role="alert" className="text-sm text-red-500">{serverError}</p>}
+      {serverError && <p role="alert" className="text-sm text-red-600 dark:text-red-500">{serverError}</p>}
 
       <div className="flex gap-2">
         <button
           onClick={handleSave}
           disabled={saving}
           aria-busy={saving}
-          className="rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-[#c2410c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
         >
           {saving ? "Сохранение…" : isEdit ? "Сохранить" : "Создать"}
         </button>

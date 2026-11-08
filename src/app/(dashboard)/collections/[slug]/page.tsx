@@ -60,7 +60,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
         <span className="text-xs opacity-60">/{collection.slug}</span>
         <button
           onClick={() => setShowCreate(true)}
-          className="ml-auto rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white"
+          className="ml-auto rounded-lg bg-[#c2410c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9a3412]"
         >
           Создать запись
         </button>
@@ -122,7 +122,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
 
       {isLoading && <p className="text-sm opacity-60">Загрузка записей…</p>}
 
-      <div className="overflow-x-auto rounded-2xl border">
+      <div className="min-w-0 overflow-x-auto rounded-2xl border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase opacity-60">
@@ -194,7 +194,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                     )}
                     <button
                       onClick={() => handleDelete(e.id, e.title)}
-                      className="rounded-lg border border-red-500/50 px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
+                      className="rounded-lg border border-red-500/50 px-2 py-1 text-xs text-red-600 dark:text-red-500 hover:bg-red-500/10"
                     >
                       Удалить
                     </button>
@@ -215,7 +215,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                 setSearch("");
                 setTag("");
               }}
-              className="mt-3 rounded-lg border border-[#f97316] px-4 py-1.5 text-sm font-semibold text-[#f97316]"
+              className="mt-3 rounded-lg border border-[#f97316] px-4 py-1.5 text-sm font-semibold text-[#9a3412] dark:text-[#f97316]"
             >
               Сбросить фильтры
             </button>
