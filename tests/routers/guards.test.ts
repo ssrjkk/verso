@@ -64,6 +64,82 @@ describe("RBAC: реальные процедуры, без БД", () => {
     await expect(c.entry.remove({ id: "e1" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("VIEWER: свою задачу удаляет, чужую — нет", async () => {
+    const own = {
+      editorialTask: {
+        findUnique: vi.fn(async () => ({ id: "t1", assigneeId: "u-VIEWER" })),
+        delete: vi.fn(async () => ({ id: "t1" })),
+      },
+    };
+    await expect(
+      caller("VIEWER", own as never).task.remove({ id: "t1" }),
+    ).resolves.toMatchObject({ id: "t1" });
+
+    const alien = {
+      editorialTask: {
+        findUnique: vi.fn(async () => ({ id: "t2", assigneeId: "u-someone-else" })),
+        delete: vi.fn(async () => ({ id: "t2" })),
+      },
+    };
+    await expect(
+      caller("VIEWER", alien as never).task.remove({ id: "t2" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(alien.editorialTask.delete).not.toHaveBeenCalled();
+  });
+
+  it("MANAGER: чужую задачу удаляет; несуществующая → NOT_FOUND", async () => {
+    const alien = {
+      editorialTask: {
+        findUnique: vi.fn(async () => ({ id: "t2", assigneeId: "u-someone-else" })),
+        delete: vi.fn(async () => ({ id: "t2" })),
+      },
+    };
+    await expect(
+      caller("MANAGER", alien as never).task.remove({ id: "t2" }),
+    ).resolves.toMatchObject({ id: "t2" });
+
+    const missing = {
+      editorialTask: { findUnique: vi.fn(async () => null), delete: vi.fn() },
+    };
+    await expect(
+      caller("MANAGER", missing as never).task.remove({ id: "nope" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(missing.editorialTask.delete).not.toHaveBeenCalled();
+  });
+
+  it("media.create: произвольные url/mime/size отклоняются", async () => {
+    const c = caller("ADMIN", mockPrisma());
+    await expect(
+      c.media.create({
+        filename: "x.html",
+        url: "https://evil.example/x.html",
+        mimeType: "text/html",
+        sizeBytes: 10,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      c.media.create({
+        filename: "big.png",
+        url: "/uploads/root/big.png",
+        mimeType: "image/png",
+        sizeBytes: 100 * 1024 * 1024,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("media.create: корректная запись из /uploads проходит", async () => {
+    const create = vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "m1", ...a.data }));
+    const p = { mediaAsset: { create } };
+    const out = (await caller("ADMIN", p as never).media.create({
+      filename: "a.png",
+      url: "/uploads/root/a.png",
+      mimeType: "image/png",
+      sizeBytes: 100,
+    })) as unknown as { id: string };
+    expect(out.id).toBe("m1");
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it("MANAGER: контент OK, ADMIN-зона -> FORBIDDEN", async () => {
     const p = mockPrisma();
     const c = caller("MANAGER", p);

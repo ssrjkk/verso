@@ -3,6 +3,7 @@ import { collectionRouter } from "./collection";
 import { entryRouter } from "./entry";
 import { blockRouter, workflowRouter, mediaRouter, seoRouter, apiKeyRouter, webhookRouter } from "./content";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { protectedProcedure, editorProcedure } from "../trpc";
 import { userRouter } from "./user";
 
@@ -24,6 +25,22 @@ const taskRouter = createTRPCRouter({
   toggle: editorProcedure.input(z.object({ id: z.string(), status: z.string() })).mutation(({ ctx, input }) =>
     ctx.prisma.editorialTask.update({ where: { id: input.id }, data: { status: input.status } }),
   ),
+  // Удаление: автор задачи или привилегированная роль (ADMIN/MANAGER).
+  // VIEWER чужую задачу удалить не может — сервер решает, UI только прячет кнопку.
+  remove: protectedProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const task = await ctx.prisma.editorialTask.findUnique({ where: { id: input.id } });
+      if (!task) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Задача не найдена" });
+      }
+      const isAuthor = task.assigneeId === ctx.user.id;
+      const isPrivileged = ctx.user.role === "ADMIN" || ctx.user.role === "MANAGER";
+      if (!isAuthor && !isPrivileged) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Удалять можно только свои задачи" });
+      }
+      return ctx.prisma.editorialTask.delete({ where: { id: input.id } });
+    }),
 });
 
 export const appRouter = createTRPCRouter({

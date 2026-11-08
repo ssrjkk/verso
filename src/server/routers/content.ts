@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
+import { mediaCreateIssue } from "@/lib/upload-validation";
 import { validateRedirect } from "@/lib/redirects";
 
 const WebhookUrl = z
@@ -75,7 +76,13 @@ export const mediaRouter = createTRPCRouter({
       filename: z.string().min(1).max(500), url: z.string().max(2000), mimeType: z.string().max(100), sizeBytes: z.number().int().min(0),
       width: z.number().optional(), height: z.number().optional(), altText: z.string().max(500).default(""), folder: z.string().max(40).default("root"),
     }))
-    .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.create({ data: input })),
+    .mutation(({ ctx, input }) => {
+      // Прямая запись обязана ссылаться на управляемый файл: произвольные
+      // url/mime/size (внешние хосты, text/html, гигабайты) отклоняются.
+      const issue = mediaCreateIssue(input);
+      if (issue) throw new TRPCError({ code: "BAD_REQUEST", message: issue });
+      return ctx.prisma.mediaAsset.create({ data: input });
+    }),
   updateAlt: editorProcedure
     .input(z.object({ id: z.string(), altText: z.string() }))
     .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.update({ where: { id: input.id }, data: { altText: input.altText } })),

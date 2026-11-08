@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
+import { useSession } from "@/lib/auth-client";
 import { slugify } from "@/lib/slug";
 import { ExportButton, ImportButton } from "@/components/collections/CsvButtons";
 
@@ -10,6 +11,8 @@ const ICONS = ["FileText", "Newspaper", "Folder", "LayoutGrid", "BookOpen", "Sho
 
 export default function CollectionsPage() {
   const utils = trpc.useUtils();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
   const { data, isLoading } = trpc.collection.list.useQuery();
   const create = trpc.collection.create.useMutation({
     onSuccess: () => {
@@ -22,12 +25,25 @@ export default function CollectionsPage() {
   const remove = trpc.collection.remove.useMutation({
     onSuccess: () => utils.collection.list.invalidate(),
   });
+  const update = trpc.collection.update.useMutation({
+    onSuccess: () => {
+      utils.collection.list.invalidate();
+      setEditingId(null);
+    },
+  });
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [desc, setDesc] = useState("");
   const [icon, setIcon] = useState("FileText");
   const [error, setError] = useState<string | null>(null);
+
+  // Inline-редактирование карточки: name + description. Slug — только текст:
+  // это часть URL Headless API, его смена ломает интеграции.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   const preview = useMemo(() => slugify(slug.trim() !== "" ? slug : name), [slug, name]);
 
@@ -51,6 +67,25 @@ export default function CollectionsPage() {
   const handleDelete = (id: string, collectionName: string) => {
     if (!window.confirm(`Удалить коллекцию «${collectionName}» вместе со всеми записями?`)) return;
     remove.mutate({ id });
+  };
+
+  const startEdit = (c: { id: string; name: string; description: string | null }) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditDesc(c.description ?? "");
+    setEditError(null);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    setEditError(null);
+    if (!editName.trim()) {
+      setEditError("Название обязательно");
+      return;
+    }
+    update.mutate(
+      { id, name: editName.trim(), description: editDesc.trim() },
+      { onError: (e) => setEditError(e.message) },
+    );
   };
 
   return (
@@ -139,11 +174,54 @@ export default function CollectionsPage() {
                 {c._count.entries} записей
               </span>
             </div>
-            {c.description && <div className="text-sm opacity-80">{c.description}</div>}
+            {c.description && editingId !== c.id && <div className="text-sm opacity-80">{c.description}</div>}
+            {isAdmin && editingId === c.id && (
+              <div className="flex flex-col gap-2 rounded-xl border border-dashed p-2">
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  aria-label="Название коллекции"
+                  placeholder="Название"
+                  className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
+                />
+                <input
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  aria-label="Описание коллекции"
+                  placeholder="Описание"
+                  className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
+                />
+                <p className="font-mono text-xs opacity-60">slug: /{c.slug} (не изменяется)</p>
+                {editError && <p className="text-xs text-red-500">{editError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSaveEdit(c.id)}
+                    disabled={update.isPending}
+                    className="rounded-lg bg-[#f97316] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    {update.isPending ? "Сохранение…" : "Сохранить"}
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg border px-3 py-1.5 text-xs"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Link href={`/collections/${c.slug}`} className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316]">
                 Открыть
               </Link>
+              {isAdmin && editingId !== c.id && (
+                <button
+                  onClick={() => startEdit(c)}
+                  className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316]"
+                >
+                  Изменить
+                </button>
+              )}
               <ExportButton collectionId={c.id} />
               <button
                 onClick={() => handleDelete(c.id, c.name)}

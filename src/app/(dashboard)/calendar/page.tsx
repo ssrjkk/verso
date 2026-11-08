@@ -38,6 +38,9 @@ export default function CalendarPage() {
   const toggleTask = trpc.task.toggle.useMutation({
     onSuccess: () => utils.task.list.invalidate(),
   });
+  const removeTask = trpc.task.remove.useMutation({
+    onSuccess: () => utils.task.list.invalidate(),
+  });
 
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDue, setTaskDue] = useState(dayKey(now));
@@ -222,15 +225,25 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-1.5">
             <h3 className="text-xs font-semibold uppercase opacity-60">Задачи</h3>
             {(selectedItems?.tasks ?? []).map((t) => (
-              <label key={t.id} className="flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={t.status === "DONE"}
-                  onChange={() => toggleTask.mutate({ id: t.id, status: t.status === "DONE" ? "TODO" : "DONE" })}
-                />
-                <span className={t.status === "DONE" ? "line-through opacity-60" : ""}>{t.title}</span>
-                <span className="ml-auto text-xs opacity-50">{t.priority}</span>
-              </label>
+              <div key={t.id} className="flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm">
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={t.status === "DONE"}
+                    onChange={() => toggleTask.mutate({ id: t.id, status: t.status === "DONE" ? "TODO" : "DONE" })}
+                  />
+                  <span className={`truncate ${t.status === "DONE" ? "line-through opacity-60" : ""}`}>{t.title}</span>
+                  <span className="ml-auto shrink-0 text-xs opacity-50">{t.priority}</span>
+                </label>
+                <button
+                  onClick={() => { if (confirm(`Удалить задачу «${t.title}»?`)) removeTask.mutate({ id: t.id }); }}
+                  aria-label={`Удалить задачу ${t.title}`}
+                  title="Удалить задачу"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-500/10"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
             {!selectedItems?.tasks.length && <p className="text-xs opacity-60">Нет задач на этот день.</p>}
           </div>
