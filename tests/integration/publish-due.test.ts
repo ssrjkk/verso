@@ -145,8 +145,11 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
 
     await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
     expect(hits[0].event).toBe("entry.published");
-    const hook = await prisma.webhookEndpoint.findFirst();
-    expect(hook?.lastStatus).toBe("200");
+    // lastStatus пишется после HTTP-ответа (fire-and-forget): ждём запись в БД,
+    // а не читаем однократно — иначе гонка между echo-хитом и update.
+    await expect
+      .poll(async () => (await prisma.webhookEndpoint.findFirst())?.lastStatus, { timeout: 5000 })
+      .toBe("200");
   });
 
   it("будущая SCHEDULED не трогается", async () => {
