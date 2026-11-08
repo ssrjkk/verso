@@ -80,6 +80,29 @@ describe("input validation contracts", () => {
     expect(upsert).toHaveBeenCalledTimes(1);
   });
 
+  it("entry.create: чужой collectionId/stageId -> NOT_FOUND, а не 500", async () => {
+    const prisma = {
+      collection: { findUnique: vi.fn(async () => null) },
+      workflowStage: { findUnique: vi.fn(async () => null) },
+      $transaction: vi.fn(),
+    };
+    const c = caller("MANAGER", prisma);
+    await expect(c.entry.create({ collectionId: "nope", title: "T" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("entry.publish/moveStage несуществующей записи -> NOT_FOUND", async () => {
+    const prisma = {
+      entry: { findUnique: vi.fn(async () => null), update: vi.fn() },
+      workflowStage: { findUnique: vi.fn(async () => ({ id: "s1", targetState: "DRAFT" })) },
+      webhookEndpoint: { findMany: vi.fn(async () => []) },
+    };
+    const c = caller("MANAGER", prisma);
+    await expect(c.entry.publish({ id: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(c.entry.moveStage({ entryId: "nope", stageId: "s1" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(prisma.entry.update).not.toHaveBeenCalled();
+  });
+
   it("entry.list: дефолт 200, >1000 отклоняется валидацией", async () => {
     const findMany = vi.fn(async () => []);
     const c = caller("MANAGER", { entry: { findMany } });
