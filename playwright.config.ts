@@ -11,6 +11,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: "file:./prisma/e2e.db",
       AUTH_RATELIMIT: "off",
+      // Разрешает e2e-эхо на 127.0.0.1; в проде с этим флагом процесс падает.
+      WEBHOOK_ALLOW_PRIVATE: "1",
       BETTER_AUTH_SECRET: "e2e-test-secret-32-chars-minimum!!",
       BETTER_AUTH_URL: "http://localhost:3100",
       NEXT_PUBLIC_APP_URL: "http://localhost:3100",

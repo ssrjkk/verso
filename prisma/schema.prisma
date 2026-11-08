@@ -229,11 +229,13 @@ model ApiKey {
 }
 
 model WebhookEndpoint {
-  id        String   @id @default(cuid())
-  name      String
-  url       String
-  secret    String
-  events    String   @default("entry.published,entry.updated")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id             String    @id @default(cuid())
+  name           String
+  url            String
+  secret         String
+  events         String    @default("entry.published,entry.updated")
+  isActive       Boolean   @default(true)
+  lastStatus     String?
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
 }

@@ -49,6 +49,8 @@ test("webhook e2e delivery with HMAC", async ({ page }) => {
     await expect.poll(async () => hits.length, { timeout: 15000 }).toBeGreaterThan(0);
     expect(hits[0].event).toBe("ping");
     expect(hits[0].sign).toMatch(/^sha256=[0-9a-f]{64}$/);
+    // Результат доставки виден в UI (lastStatus/lastDeliveryAt).
+    await expect(row.getByText(/статус 200/)).toBeVisible({ timeout: 10000 });
 
     // Подпись проверяема независимо: sha256-hex от тела на секрете
     const { createHmac } = await import("node:crypto");
@@ -60,5 +62,16 @@ test("webhook e2e delivery with HMAC", async ({ page }) => {
     await expect(page.getByText(name)).toBeHidden({ timeout: 10000 });
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("webhook.create отклоняет user:pass@ и не-http(s) URL", async ({ page }) => {
+  for (const url of ["http://user:pass@example.com/hook", "ftp://example.com/hook"]) {
+    const res = await page.request.post("/api/trpc/webhook.create?batch=1", {
+      headers: { "content-type": "application/json" },
+      data: { "0": { json: { name: `bad-${Date.now()}`, url, secret: "s" } } },
+    });
+    const body = (await res.json()) as Array<{ error?: { json: { data: { code: string } } } }>;
+    expect(body[0].error?.json.data.code).toBe("BAD_REQUEST");
   }
 });

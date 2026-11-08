@@ -2,34 +2,9 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
+import { fireWebhooks } from "@/lib/webhook";
 
 const Status = z.enum(["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"]);
-
-async function fireWebhooks(prisma: { webhookEndpoint: { findMany: (a: unknown) => Promise<{ url: string; secret: string; events: string; isActive: boolean }[]> } }, event: string, payload: unknown) {
-  try {
-    const { createHmac } = await import("node:crypto");
-    const body = JSON.stringify({ event, data: payload });
-    const endpoints = await prisma.webhookEndpoint.findMany({ where: { isActive: true } } as never);
-    const targets = endpoints.filter((e) => e.events.split(",").map((s) => s.trim()).includes(event));
-    await Promise.allSettled(
-      targets.map((e) =>
-        fetch(e.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Verso-Event": event,
-            // HMAC-подпись тела вместо голого секрета: получатель проверяет
-            // целостность, секрет по сети не путешествует в открытом виде.
-            "X-Verso-Sign": `sha256=${createHmac("sha256", e.secret).update(body).digest("hex")}`,
-          },
-          body,
-        }),
-      ),
-    );
-  } catch {
-    // вебхуки не должны ронять публикацию
-  }
-}
 
 // Свободный slug внутри коллекции: дубль названия получает -2, -3, …,
 // Free slug within a collection: duplicates get -2, -3, ... instead of P2002.
@@ -225,11 +200,14 @@ export const entryRouter = createTRPCRouter({
           },
         });
         return updated;
-      }).then(async (updated) => {
-        // Сеть — только после коммита: не держим транзакцию на HTTP.
-        if ((updated as { status: string }).status === "PUBLISHED") {
-          await fireWebhooks(ctx.prisma as never, "entry.published", updated);
-        }
+      }).then((updated) => {
+        // Сеть — только после коммита и без ожидания: публикация не блокируется.
+        const status = (updated as { status: string }).status;
+        fireWebhooks(
+          ctx.prisma,
+          status === "PUBLISHED" ? "entry.published" : "entry.updated",
+          updated,
+        );
         return updated;
       });
     }),
@@ -258,7 +236,7 @@ export const entryRouter = createTRPCRouter({
         return e;
       });
       // Сеть — только после коммита: не держим транзакцию на HTTP.
-      if (isPublishing) await fireWebhooks(ctx.prisma as never, "entry.published", entry);
+      if (isPublishing) fireWebhooks(ctx.prisma, "entry.published", entry);
       return entry;
     }),
 
@@ -298,7 +276,7 @@ export const entryRouter = createTRPCRouter({
       where: { id: input.id },
       data: { status: "PUBLISHED", publishedAt: new Date() },
     });
-    await fireWebhooks(ctx.prisma as never, "entry.published", entry);
+    fireWebhooks(ctx.prisma, "entry.published", entry);
     return entry;
   }),
 

@@ -59,23 +59,35 @@ describe("entry.update slug collisions", () => {
 });
 
 describe("webhook test failure path", () => {
-  it("недоступный хост -> {ok:false}, без исключений", async () => {
-    const failFetch = vi.fn(async () => {
-      throw new Error("connect ECONNREFUSED");
-    });
-    vi.stubGlobal("fetch", failFetch);
+  it("недоступный хост -> {ok:false}, без исключений, lastStatus=0", async () => {
+    // Контракт P0-B: доставка идёт через node:http(s), не через fetch.
+    // 127.0.0.1 разрешён только тестовому харнессу; порт 9 закрыт -> ECONNREFUSED.
+    const saved = process.env.WEBHOOK_ALLOW_PRIVATE;
+    process.env.WEBHOOK_ALLOW_PRIVATE = "1";
     try {
+      const update = vi.fn(async () => ({}));
       const prisma = {
         webhookEndpoint: {
           findUnique: vi.fn(async () => ({ id: "w1", name: "t", url: "http://127.0.0.1:9/hook", secret: "s", events: "entry.published" })),
+          // Контракт P0-B: неудачная доставка тоже фиксируется в БД.
+          update,
         },
       };
-      const out = (await admin(prisma).webhook.test({ id: "w1" })) as unknown as { ok: boolean; status: number };
+      const out = (await admin(prisma).webhook.test({ id: "w1" })) as unknown as {
+        ok: boolean;
+        status: number;
+        error?: string;
+      };
       expect(out.ok).toBe(false);
       expect(out.status).toBe(0);
-      expect(failFetch).toHaveBeenCalledTimes(1);
+      expect(out.error, "причина отказа сохранена для UI/диагностики").toMatch(/ECONNREFUSED|connect/i);
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "w1" },
+        data: { lastStatus: "0", lastDeliveryAt: expect.any(Date) },
+      });
     } finally {
-      vi.unstubAllGlobals();
+      if (saved === undefined) delete process.env.WEBHOOK_ALLOW_PRIVATE;
+      else process.env.WEBHOOK_ALLOW_PRIVATE = saved;
     }
   });
 });

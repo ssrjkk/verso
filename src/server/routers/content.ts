@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
+import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
+
+const WebhookUrl = z
+  .string()
+  .max(2048)
+  .superRefine((value, ctx) => {
+    const result = validateWebhookUrl(value);
+    if (!result.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.reason });
+  });
 
 export const blockRouter = createTRPCRouter({
   list: protectedProcedure.input(z.object({ entryId: z.string() })).query(({ ctx, input }) =>
@@ -180,7 +189,7 @@ export const webhookRouter = createTRPCRouter({
   create: adminProcedure
     .input(z.object({
       name: z.string().min(1).max(200),
-      url: z.string().url(),
+      url: WebhookUrl,
       secret: z.string().min(1).max(500),
       events: z.string().max(500).default("entry.published,entry.updated")
       .refine((v) => v.split(",").map((s) => s.trim()).filter(Boolean).every((s) => KNOWN_WEBHOOK_EVENTS.includes(s as WebhookEvent)), {
@@ -193,7 +202,7 @@ export const webhookRouter = createTRPCRouter({
     .input(z.object({
       id: z.string(),
       name: z.string().min(1).max(200).optional(),
-      url: z.string().url().optional(),
+      url: WebhookUrl.optional(),
       secret: z.string().min(1).max(500).optional(),
       events: z.string().max(500).optional().refine((v) => v === undefined || v.split(",").map((s) => s.trim()).filter(Boolean).every((s) => KNOWN_WEBHOOK_EVENTS.includes(s as WebhookEvent)), {
       message: "Unknown event. Allowed: entry.published, entry.updated",
@@ -215,20 +224,7 @@ export const webhookRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const endpoint = await ctx.prisma.webhookEndpoint.findUnique({ where: { id: input.id } });
-      if (!endpoint) throw new Error("Вебхук не найден");
-      const crypto = await import("node:crypto");
-      const payload = JSON.stringify({ event: "ping", at: new Date().toISOString(), endpoint: endpoint.name });
-      const sign = crypto.createHmac("sha256", endpoint.secret).update(payload).digest("hex");
-      try {
-        const res = await fetch(endpoint.url, {
-          method: "POST",
-          // Единый формат подписи с fireWebhooks (entry.ts): sha256=<hex тела>.
-          headers: { "Content-Type": "application/json", "X-Verso-Event": "ping", "X-Verso-Sign": `sha256=${sign}` },
-          body: payload,
-        });
-        return { ok: res.ok, status: res.status };
-      } catch (e) {
-        return { ok: false, status: 0, error: e instanceof Error ? e.message : "fetch failed" };
-      }
+      if (!endpoint) throw new TRPCError({ code: "NOT_FOUND", message: "Вебхук не найден" });
+      return testWebhook(ctx.prisma, endpoint);
     }),
 });

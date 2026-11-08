@@ -14,7 +14,14 @@ export default function SettingsPage() {
   const whCreate = trpc.webhook.create.useMutation({ onSuccess: () => utils.invalidate() });
   const whToggle = trpc.webhook.toggle.useMutation({ onSuccess: () => utils.invalidate() });
   const whRemove = trpc.webhook.remove.useMutation({ onSuccess: () => utils.invalidate() });
-  const whTest = trpc.webhook.test.useMutation({ onSuccess: (d) => setTestResult(JSON.stringify(d)) });
+  const whTest = trpc.webhook.test.useMutation({
+    onSuccess: (d) => {
+      setTestResult(JSON.stringify(d));
+      // lastStatus/lastDeliveryAt пишутся сервером до ответа mutation —
+      // инвалидация сразу подтягивает их в строку endpoint'а.
+      void utils.webhook.list.invalidate();
+    },
+  });
 
   const [name, setName] = useState("");
   const [scope, setScope] = useState<"READ" | "READ_WRITE">("READ");
@@ -108,7 +115,7 @@ export default function SettingsPage() {
         </div>
         {webhooks.map((w) => (
           <div key={w.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
-            <span className="break-all">{w.name} · {w.url} · {w.events} · {w.isActive ? "активен" : "выкл"}</span>
+            <span className="break-all">{w.name} · {w.url} · {w.events} · {w.isActive ? "активен" : "выкл"} · {w.lastStatus ? `статус ${w.lastStatus}` : "не доставлялся"}{w.lastDeliveryAt ? ` (${new Date(w.lastDeliveryAt).toLocaleString()})` : ""}</span>
             <span className="flex gap-2 text-xs">
               <button onClick={() => whToggle.mutate({ id: w.id, isActive: !w.isActive })} className="underline">
                 {w.isActive ? "Выкл" : "Вкл"}
