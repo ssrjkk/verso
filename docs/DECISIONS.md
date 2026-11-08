@@ -226,3 +226,28 @@ PNG/JPEG/GIF/WEBP/PDF/MP4 + AVIF/WEBM проверяются по magic bytes р
 
 **Цена.** CTA-кнопки темнее фирменного чипа (тот же hue, темнее оттенок);
 `@axe-core/playwright` тянет браузерный axe-core в dev-зависимости.
+
+### 12. P4: чистая установка обязана работать с первого раза
+
+**Решение.** `better-sqlite3` зафиксирован на `^12.11.1` (единственная
+дедуплицированная копия; nested-дубль от адаптера исчез).
+v13 поставляет bundled prebuilds с `gypfile:false`, но npm всё равно
+синтезирует `node-gyp rebuild` при наличии `binding.gyp` и падает на машинах
+без VS Build Tools — чистый клон на Windows не ставился вообще. У v12
+`prebuild-install || node-gyp rebuild` скачивает готовый бинарник
+(проверено: exit 0). Версия совпадает с той, что резолвит себе
+`@prisma/adapter-better-sqlite3@7.10.1`, сырой импорт (`new Database`)
+используется только в одном e2e-сидтесте и с v12 совместим.
+Плюс хуки `predb:seed`/`predev` → `prisma generate`: README-поток
+`db:push → db:seed` падал на чистой копии (`Cannot find module
+.prisma/client/default`). CI (`ci.yml`) выполняет ровно ворота
+`test:all` (typecheck + vitest + build + e2e) после `npm ci` и установки
+Chromium.
+
+**Почему.** P4 требует зелёный `test:all` на голом клоне; зависимость,
+требующая компилятор C++ на машине разработчика, — скрытый стопор.
+Дефект всплыл только на чистой копии (в рабочем дереве node_modules был
+собран раньше).
+
+**Цена.** Остаёмся на v12 вместо v13 (N-API, разницы в используемых API нет);
+`npm ci` тянет prebuild через сеть (как и любой пакет).
