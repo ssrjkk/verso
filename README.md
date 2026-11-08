@@ -1,13 +1,15 @@
 # Verso
 
+[![CI](https://github.com/ssrjkk/verso/actions/workflows/ci.yml/badge.svg)](https://github.com/ssrjkk/verso/actions/workflows/ci.yml)
+
 Редакционный Headless CMS + конструктор страниц.
-Стек: Next.js 16, React 19, Tailwind CSS v4 (oklch), tRPC v11, Prisma 7 + SQLite, Better Auth.
+Стек: Next.js 16, React 19, Tailwind CSS v4, tRPC v11, Prisma 7 + SQLite, Better Auth.
 
 ## Быстрый старт
 
 ```bash
 cp .env.example .env
-npm install
+npm install        # или npm ci на чистом клоне
 npm run db:push
 npm run db:seed
 npm run dev
@@ -15,13 +17,7 @@ npm run dev
 
 Демо-вход: `admin@verso.dev` / `editor@verso.dev` / `viewer@verso.dev`, пароль `Test12345!` (создаётся сидом).
 
-## Окружение
-
-Все переменные — в `.env.example`: `DATABASE_URL`, `BETTER_AUTH_*`,
-`NEXT_PUBLIC_APP_URL`, `TRUSTED_ORIGINS` (доп. origin через запятую),
-`CRON_SECRET` (Bearer для `POST /api/cron/publish-due`, без него 503),
-`PUBLISH_DUE_TICK_MS` (интервал самопубликации, выключен по умолчанию),
-`WEBHOOK_ALLOW_PRIVATE=1` (только e2e-стенд; в проде процесс падает).
+Проверка целиком (как в CI): `npm run test:all` — typecheck + vitest + build + playwright e2e.
 
 ## Модули
 
@@ -35,6 +31,24 @@ npm run dev
 - Планировщик: SCHEDULED → PUBLISHED по `POST /api/cron/publish-due` (Bearer `CRON_SECRET`)
 - Роли: ADMIN / MANAGER / VIEWER
 
+## Окружение
+
+Все переменные — в `.env.example`: `DATABASE_URL`, `BETTER_AUTH_*`,
+`NEXT_PUBLIC_APP_URL`, `TRUSTED_ORIGINS` (доп. origin через запятую),
+`CRON_SECRET` (Bearer для `POST /api/cron/publish-due`, без него 503),
+`PUBLISH_DUE_TICK_MS` (интервал самопубликации, выключен по умолчанию),
+`WEBHOOK_ALLOW_PRIVATE=1` (только e2e-стенд; в проде процесс падает).
+
 ## Скрипты
 
 - `npm run typecheck` · `npm test` · `npm run test:e2e` · `npm run test:all` · `npm run build`
+- `npm run db:push` · `npm run db:seed` · `npm run db:studio`
+
+## Решения
+
+Архитектурные решения (роли, вебхуки, редиректы, планировщик, лимиты) —
+в [`docs/DECISIONS.md`](docs/DECISIONS.md): проблема → решение → почему → цена.
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).
