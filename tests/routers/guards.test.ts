@@ -26,7 +26,9 @@ function mockPrisma() {
     },
     collection: {
       findMany: vi.fn(async () => []),
-      findUnique: vi.fn(async () => null),
+      findUnique: vi.fn(async (a: { where?: Record<string, unknown> }) =>
+        a?.where && "id" in a.where ? { id: a.where.id } : null,
+      ),
       create: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "c1", ...a.data })),
       delete: vi.fn(async () => ({})),
     },

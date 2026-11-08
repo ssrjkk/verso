@@ -21,6 +21,7 @@ describe("entry.publish -> webhooks, без БД", () => {
     vi.stubGlobal("fetch", fetchMock);
     const prisma = {
       entry: {
+        findUnique: vi.fn(async () => ({ id: "e1" })),
         update: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "e1", title: "T", ...a.data })),
       },
       webhookEndpoint: {

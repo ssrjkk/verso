@@ -34,7 +34,7 @@ test("upload happy path: png 201 + виден в медиатеке", async ({ p
   const listed = await page.request.get(
     `/api/trpc/media.list?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { search: fname } } }))}`,
   );
-  const found = ((await listed.json()) as Array<{ result: { data: { json: Array<{ id: string }> } } }>)[0].result.data.json;
+  const found = ((await listed.json()) as Array<{ result: { data: { json: Array<{ id: string; url: string }> } } }>)[0].result.data.json;
   if (found.length > 0) {
     const actx = await browser.newContext({ storageState: "tests/e2e/.auth/admin.json" });
     const apage = await actx.newPage();
@@ -43,5 +43,9 @@ test("upload happy path: png 201 + виден в медиатеке", async ({ p
       data: { "0": { json: { id: found[0].id } } },
     });
     await actx.close();
+    // Файл реально удалён с диска, а не только строка в БД
+    const { existsSync } = await import("node:fs");
+    const path = await import("node:path");
+    expect(existsSync(path.join(process.cwd(), "public", found[0].url.replace(/^\//, "")))).toBe(false);
   }
 });

@@ -113,6 +113,12 @@ export const entryRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const base = input.slug ? slugify(input.slug) : slugify(input.title);
+      const collection = await ctx.prisma.collection.findUnique({ where: { id: input.collectionId }, select: { id: true } });
+      if (!collection) throw new TRPCError({ code: "NOT_FOUND", message: "Коллекция не найдена" });
+      if (input.stageId) {
+        const stage = await ctx.prisma.workflowStage.findUnique({ where: { id: input.stageId }, select: { id: true } });
+        if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
+      }
       // Retry on P2002: two parallel creates may pick the same free slug
       // before either commits; the loser recomputes and retries (max 5).
       let lastError: unknown = null;
@@ -217,6 +223,8 @@ export const entryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const stage = await ctx.prisma.workflowStage.findUnique({ where: { id: input.stageId } });
       if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
+      const existing = await ctx.prisma.entry.findUnique({ where: { id: input.entryId }, select: { id: true } });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
       const isPublishing = stage.targetState === "PUBLISHED";
       const entry = await ctx.prisma.$transaction(async (tx) => {
         const e = await tx.entry.update({
@@ -267,6 +275,8 @@ export const entryRouter = createTRPCRouter({
     }),
 
   publish: editorProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.prisma.entry.findUnique({ where: { id: input.id }, select: { id: true } });
+    if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
     const entry = await ctx.prisma.entry.update({
       where: { id: input.id },
       data: { status: "PUBLISHED", publishedAt: new Date() },

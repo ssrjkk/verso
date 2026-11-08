@@ -33,7 +33,10 @@ describe("unique slug auto-suffix (no more P2002 on duplicates)", () => {
       revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
       activityLog: { create: vi.fn(async () => ({})) },
     };
-    const prisma = { $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)) };
+    const prisma = {
+      collection: { findUnique: vi.fn(async () => ({ id: "c1" })) },
+      $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+    };
     const c = manager(prisma);
     const r1 = await c.entry.create({ collectionId: "c1", title: "Same" });
     const r2 = await c.entry.create({ collectionId: "c1", title: "Same" });
@@ -65,7 +68,10 @@ describe("unique slug auto-suffix (no more P2002 on duplicates)", () => {
       revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
       activityLog: { create: vi.fn(async () => ({})) },
     };
-    const prisma = { $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)) };
+    const prisma = {
+      collection: { findUnique: vi.fn(async () => ({ id: "c1" })) },
+      $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+    };
     const out = await manager(prisma).entry.create({ collectionId: "c1", title: "Race" });
     expect((out as { slug: string }).slug).toBe("race-2");
     expect(tx.entry.create).toHaveBeenCalledTimes(2);
