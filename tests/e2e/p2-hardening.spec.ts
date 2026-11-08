@@ -72,6 +72,19 @@ test("v1: превышение лимита → 429 + Retry-After", async ({ pag
   expect(Number(retryAfter), "Retry-After в секундах").toBeGreaterThan(0);
 });
 
+test("upload: контент без png-сигнатуры отклоняется (расширение/mime валидны)", async ({ page }) => {
+  // Идёт ДО hammer-теста: у них общий бюджет на пользователя, а magic-отказ
+  // требует свободного токена (проверка лимита — до валидации).
+  const fake = Buffer.from("<html><script>alert(1)</script></html>");
+  const res = await page.request.post("/api/upload", {
+    multipart: {
+      file: { name: "x.png", mimeType: "image/png", buffer: fake },
+      folder: "root",
+    },
+  });
+  expect(res.status()).toBe(400);
+});
+
 test("upload: превышение лимита → 429 + Retry-After", async ({ page, browser }) => {
   const tiny = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const createdIds: string[] = [];
@@ -105,17 +118,6 @@ test("upload: превышение лимита → 429 + Retry-After", async ({
   } finally {
     await actx.close();
   }
-});
-
-test("upload: контент без png-сигнатуры отклоняется (расширение/mime валидны)", async ({ page }) => {
-  const fake = Buffer.from("<html><script>alert(1)</script></html>");
-  const res = await page.request.post("/api/upload", {
-    multipart: {
-      file: { name: "x.png", mimeType: "image/png", buffer: fake },
-      folder: "root",
-    },
-  });
-  expect(res.status()).toBe(400);
 });
 
 test("коллекция: переименование и описание из UI, slug read-only", async ({ page }) => {
