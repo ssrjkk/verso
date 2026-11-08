@@ -67,7 +67,7 @@ export default function DashboardPage() {
             { label: "Задач редакции", value: tasks?.length ?? 0 },
           ].map((c) => (
             <div key={c.label} className="rounded-2xl border bg-white p-5 dark:bg-white/5">
-              <div className="text-3xl font-extrabold text-[#7c5cff]">{c.value}</div>
+              <div className="text-3xl font-extrabold text-[#f97316]">{c.value}</div>
               <div className="text-sm opacity-70">{c.label}</div>
             </div>
           ))}
@@ -127,7 +127,7 @@ export default function DashboardPage() {
               <Link
                 key={e.id}
                 href={`/entries/${e.id}`}
-                className="flex justify-between gap-2 rounded-lg border-b py-2 text-sm outline-none last:border-0 hover:text-[#7c5cff] focus-visible:ring-2 focus-visible:ring-[#7c5cff]"
+                className="flex justify-between gap-2 rounded-lg border-b py-2 text-sm outline-none last:border-0 hover:text-[#f97316] focus-visible:ring-2 focus-visible:ring-[#f97316]"
               >
                 <span className="truncate underline-offset-2 hover:underline">{e.title}</span>
                 <span className="shrink-0 opacity-60">{e.status}</span>

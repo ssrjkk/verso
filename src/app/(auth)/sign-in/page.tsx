@@ -7,8 +7,8 @@ import { signIn } from "@/lib/auth-client";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("test@corvid.dev");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("admin@verso.dev");
+  const [password, setPassword] = useState("Test12345!");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +36,7 @@ export default function SignInPage() {
         }}
       >
         <h1 className="font-display text-2xl font-extrabold text-white">
-          Вход · Corvid <span className="text-[#7c5cff]">CMS</span>
+          Вход · <span className="text-[#f97316]">Verso</span>
         </h1>
         <p className="text-sm text-neutral-400">Войдите, чтобы управлять контентом</p>
         <label htmlFor="signin-email" className="text-xs font-semibold text-neutral-300">
@@ -51,7 +51,7 @@ export default function SignInPage() {
           autoComplete="email"
           required
           aria-invalid={err ? true : undefined}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#7c5cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#f97316] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         />
         <label htmlFor="signin-password" className="text-xs font-semibold text-neutral-300">
           Пароль
@@ -65,7 +65,7 @@ export default function SignInPage() {
           autoComplete="current-password"
           required
           aria-invalid={err ? true : undefined}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#7c5cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#f97316] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         />
         {err && (
           <p role="alert" className="text-sm text-red-400">
@@ -75,13 +75,13 @@ export default function SignInPage() {
         <button
           disabled={loading}
           aria-label={loading ? "Выполняется вход" : "Войти"}
-          className="rounded-xl bg-[#7c5cff] py-2.5 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-xl bg-[#f97316] py-2.5 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         >
           {loading ? "Входим…" : "Войти"}
         </button>
         <p className="text-center text-sm text-neutral-400">
           Нет аккаунта?{" "}
-          <Link href="/sign-up" className="font-semibold text-[#7c5cff] hover:underline">
+          <Link href="/sign-up" className="font-semibold text-[#f97316] hover:underline">
             Регистрация
           </Link>
         </p>

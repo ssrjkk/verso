@@ -64,20 +64,20 @@ export default function CollectionsPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Название коллекции"
-            className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]"
+            className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
           />
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             placeholder="slug (авто из названия)"
-            className="rounded-lg border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-[#7c5cff]"
+            className="rounded-lg border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-[#f97316]"
           />
         </div>
         <input
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           placeholder="Описание"
-          className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]"
+          className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
         />
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs opacity-60">Иконка:</span>
@@ -85,7 +85,7 @@ export default function CollectionsPage() {
             <button
               key={ic}
               onClick={() => setIcon(ic)}
-              className={`rounded-lg border px-3 py-1.5 text-xs ${icon === ic ? "border-[#7c5cff] font-semibold" : ""}`}
+              className={`rounded-lg border px-3 py-1.5 text-xs ${icon === ic ? "border-[#f97316] font-semibold" : ""}`}
             >
               {ic}
             </button>
@@ -99,7 +99,7 @@ export default function CollectionsPage() {
           <button
             onClick={handleCreate}
             disabled={create.isPending}
-            className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {create.isPending ? "Создание…" : "Создать"}
           </button>
@@ -126,14 +126,14 @@ export default function CollectionsPage() {
       <div className="grid sm:grid-cols-2 gap-3">
         {(data ?? []).map((c) => (
           <div key={c.id} className="rounded-2xl border p-4 flex flex-col gap-2">
-            <Link href={`/collections/${c.slug}`} className="font-bold hover:text-[#7c5cff]">
-              <span className="mr-2 inline-block rounded bg-[#7c5cff]/15 px-2 py-0.5 text-xs">{c.icon}</span>
+            <Link href={`/collections/${c.slug}`} className="font-bold hover:text-[#f97316]">
+              <span className="mr-2 inline-block rounded bg-[#f97316]/15 px-2 py-0.5 text-xs">{c.icon}</span>
               {c.name}
             </Link>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-mono opacity-60">/{c.slug}</span>
               <span
-                className="rounded-full bg-[#7c5cff]/12 px-2.5 py-0.5 font-bold text-[#7c5cff]"
+                className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 font-bold text-[#f97316]"
                 aria-label={`Записей: ${c._count.entries}`}
               >
                 {c._count.entries} записей
@@ -141,7 +141,7 @@ export default function CollectionsPage() {
             </div>
             {c.description && <div className="text-sm opacity-80">{c.description}</div>}
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Link href={`/collections/${c.slug}`} className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#7c5cff]">
+              <Link href={`/collections/${c.slug}`} className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316]">
                 Открыть
               </Link>
               <ExportButton collectionId={c.id} />

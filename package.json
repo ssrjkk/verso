@@ -1,8 +1,8 @@
 {
-  "name": "cms_ssrjkk",
+  "name": "verso",
   "version": "0.1.0",
   "private": true,
-  "description": "Corvid CMS — блочно-коллекционная Headless CMS + Page Builder в дизайн-системе Corvid",
+  "description": "Verso — блочно-коллекционная Headless CMS + Page Builder в дизайн-системе Verso",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

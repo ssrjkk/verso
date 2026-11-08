@@ -59,7 +59,7 @@ export default function SeoPage() {
           </select>
           <button
             onClick={() => from && to && upsert.mutate({ fromPath: from, toPath: to, statusCode: code })}
-            className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white"
           >
             Добавить
           </button>
@@ -76,7 +76,7 @@ export default function SeoPage() {
             <span>{r.fromPath} → {r.toPath}</span>
             <span className="flex items-center gap-2 opacity-80">
               <span>{r.statusCode} · {r.isActive ? "активен" : "выкл"}</span>
-              <span className="rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[11px] font-bold text-[#7c5cff]">
+              <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#f97316]">
                 hits {r.hits}
               </span>
               <button onClick={() => toggle.mutate({ id: r.id, isActive: !r.isActive })} className="rounded border px-2 py-0.5 text-xs">
@@ -117,7 +117,7 @@ export default function SeoPage() {
         <h2 className="font-bold">Sitemap</h2>
         <div className="flex gap-2">
           <button onClick={loadSitemap} className="rounded-lg border px-4 py-2 text-sm">Предпросмотр</button>
-          <button onClick={downloadSitemap} className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm text-white">Скачать</button>
+          <button onClick={downloadSitemap} className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white">Скачать</button>
         </div>
         {sitemap && <pre className="max-h-64 overflow-auto rounded-xl border p-3 text-xs">{sitemap}</pre>}
       </section>

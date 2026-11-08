@@ -21,7 +21,7 @@ export default function OgPreview({ title, description, image, url }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt={title} className="h-44 w-full object-cover" />
         ) : (
-          <div className="flex h-24 w-full items-center justify-center bg-[#7c5cff]/10 text-sm opacity-60">
+          <div className="flex h-24 w-full items-center justify-center bg-[#f97316]/10 text-sm opacity-60">
             Нет og-изображения
           </div>
         )}
@@ -35,7 +35,7 @@ export default function OgPreview({ title, description, image, url }: Props) {
         <div className="font-semibold">Telegram / Twitter</div>
         <div className="mt-1 truncate font-bold">{title || "Заголовок"}</div>
         <div className="truncate opacity-60">{description || "Описание…"}</div>
-        <div className="truncate text-xs text-[#7c5cff]">{url || "https://…"}</div>
+        <div className="truncate text-xs text-[#f97316]">{url || "https://…"}</div>
       </div>
     </div>
   );

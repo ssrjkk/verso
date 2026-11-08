@@ -1,6 +1,6 @@
-# Corvid CMS
+# Verso
 
-Блочно-коллекционная Headless CMS + Page Builder в дизайн-системе Corvid.
+Редакционный Headless CMS + конструктор страниц.
 Стек: Next.js 16, React 19, Tailwind CSS v4 (oklch), tRPC v11, Prisma 7 + SQLite, Better Auth.
 
 ## Быстрый старт
@@ -13,7 +13,7 @@ npm run db:seed
 npm run dev
 ```
 
-Демо-вход: `test@corvid.dev` / `editor@corvid.dev` / `viewer@corvid.dev`, пароль `password123` (создаётся сидом).
+Демо-вход: `admin@verso.dev` / `editor@verso.dev` / `viewer@verso.dev`, пароль `Test12345!` (создаётся сидом).
 
 ## Модули
 
@@ -22,10 +22,10 @@ npm run dev
 - Kanban редполитики (`/board`) — смена этапа = смена статуса
 - Ревизии с откатом в 1 клик
 - Медиатека, SEO-редиректы, календарь
-- Headless API: `GET /api/v1/[collection]` с `x-api-key: crv_live_…`
+- Headless API: `GET /api/v1/[collection]` с `x-api-key: vrs_live_…`
 - Вебхуки `entry.published/entry.updated`
 - Роли: ADMIN / MANAGER / VIEWER
 
 ## Скрипты
 
-- `npm run typecheck` · `npm test` · `npm run test:e2e` · `npm run build`
+- `npm run typecheck` · `npm test` · `npm run test:e2e` · `npm run test:all` · `npm run build`

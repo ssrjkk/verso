@@ -3,22 +3,22 @@ import { auth } from "../src/lib/auth";
 import { prisma } from "../src/lib/prisma";
 
 const USERS = [
-  { name: "Test Admin", email: "test@corvid.dev", password: "password123", role: "ADMIN" },
-  { name: "Editor", email: "editor@corvid.dev", password: "password123", role: "MANAGER" },
-  { name: "Viewer", email: "viewer@corvid.dev", password: "password123", role: "VIEWER" },
+  { name: "Test Admin", email: "admin@verso.dev", password: "Test12345!", role: "ADMIN" },
+  { name: "Editor", email: "editor@verso.dev", password: "Test12345!", role: "MANAGER" },
+  { name: "Viewer", email: "viewer@verso.dev", password: "Test12345!", role: "VIEWER" },
 ];
 
 const STAGES = [
   { id: "stage-draft", name: "Черновик", order: 0, color: "#8b8fa3", targetState: "DRAFT" },
   { id: "stage-review", name: "На ревью", order: 1, color: "#f5a524", targetState: "IN_REVIEW" },
   { id: "stage-published", name: "Опубликовано", order: 2, color: "#17c964", targetState: "PUBLISHED" },
-  { id: "stage-archived", name: "Архив", order: 3, color: "#7c5cff", targetState: "ARCHIVED" },
+  { id: "stage-archived", name: "Архив", order: 3, color: "#f97316", targetState: "ARCHIVED" },
 ];
 
 const COLLECTIONS = [
   { name: "Страницы", slug: "pages", description: "Лендинги и страницы конструктора" },
   { name: "Статьи", slug: "posts", description: "Блог и новости" },
-  { name: "Кейсы", slug: "cases", description: "Портфолио из проектов CRM" },
+  { name: "Кейсы", slug: "cases", description: "Подборка работ и кейсов" },
 ];
 
 async function ensureUser(u: (typeof USERS)[number]) {

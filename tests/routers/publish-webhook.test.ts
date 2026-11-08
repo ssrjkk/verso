@@ -14,7 +14,7 @@ function caller(role: "ADMIN" | "MANAGER" | "VIEWER", prisma: unknown) {
 }
 
 describe("entry.publish -> webhooks, без БД", () => {
-  it("MANAGER: PUBLISHED + fetch с X-Corvid-Event", async () => {
+  it("MANAGER: PUBLISHED + fetch с X-Verso-Event", async () => {
     const fetchMock = vi.fn(
       async (_url: string, _init?: { headers?: Record<string, string> }) => new Response("{}"),
     );
@@ -39,7 +39,7 @@ describe("entry.publish -> webhooks, без БД", () => {
       { headers: Record<string, string> },
     ];
     expect(calledUrl).toBe("https://cms.test/hook");
-    expect(calledInit.headers["X-Corvid-Event"]).toBe("entry.published");
+    expect(calledInit.headers["X-Verso-Event"]).toBe("entry.published");
   });
 
   it("VIEWER: FORBIDDEN, вебхук не стреляет", async () => {

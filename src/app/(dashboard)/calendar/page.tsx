@@ -106,7 +106,7 @@ export default function CalendarPage() {
       <div className="flex items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold capitalize">{monthName}</h1>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => shiftMonth(-1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#7c5cff]">
+          <button onClick={() => shiftMonth(-1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]">
             ←
           </button>
           <button
@@ -115,11 +115,11 @@ export default function CalendarPage() {
               setMonth(now.getMonth());
               pickDay(now);
             }}
-            className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#7c5cff]"
+            className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]"
           >
             Сегодня
           </button>
-          <button onClick={() => shiftMonth(1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#7c5cff]">
+          <button onClick={() => shiftMonth(1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]">
             →
           </button>
         </div>
@@ -163,9 +163,9 @@ export default function CalendarPage() {
                   onClick={() => pickDay(d)}
                   className={`min-h-[84px] rounded-xl border p-1.5 text-left text-xs ${
                     inMonth ? "" : "opacity-40"
-                  } ${isSelected ? "border-[#7c5cff]" : ""} ${isToday ? "bg-[#7c5cff]/10" : ""} hover:border-[#7c5cff]`}
+                  } ${isSelected ? "border-[#f97316]" : ""} ${isToday ? "bg-[#f97316]/10" : ""} hover:border-[#f97316]`}
                 >
-                  <div className={`font-bold ${isToday ? "text-[#7c5cff]" : ""}`}>{d.getDate()}</div>
+                  <div className={`font-bold ${isToday ? "text-[#f97316]" : ""}`}>{d.getDate()}</div>
                   <div className="mt-1 flex flex-col gap-0.5">
                     {(items?.entries ?? []).slice(0, 2).map((e) => (
                       <span key={e.id} className="truncate rounded bg-emerald-500/15 px-1 py-0.5" title={e.title}>
@@ -211,7 +211,7 @@ export default function CalendarPage() {
               <Link
                 key={e.id}
                 href={`/entries/${e.id}`}
-                className="rounded-lg border px-2 py-1.5 text-sm hover:border-[#7c5cff]"
+                className="rounded-lg border px-2 py-1.5 text-sm hover:border-[#f97316]"
               >
                 {e.title} <span className="opacity-50">· {e.status}</span>
               </Link>
@@ -241,7 +241,7 @@ export default function CalendarPage() {
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
               placeholder="Название задачи"
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]"
+              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
             />
             <input
               type="date"
@@ -277,7 +277,7 @@ export default function CalendarPage() {
             <button
               onClick={handleCreateTask}
               disabled={createTask.isPending || !taskTitle.trim()}
-              className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               {createTask.isPending ? "Создание…" : "Создать задачу"}
             </button>

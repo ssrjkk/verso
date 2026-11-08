@@ -79,7 +79,7 @@ model Collection {
 model WorkflowStage {
   id          String   @id @default(cuid())
   name        String
-  color       String   @default("#7c5cff")
+  color       String   @default("#f97316")
   order       Int      @default(0)
   targetState String   @default("DRAFT") // DRAFT | IN_REVIEW | PUBLISHED | ARCHIVED
   createdAt   DateTime @default(now())
@@ -108,8 +108,8 @@ model Entry {
   stage           WorkflowStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   authorId        String
   author          User           @relation("EntryAuthor", fields: [authorId], references: [id])
-  // Интеграция с проектами Corvid CRM (1:1 по внешнему ID)
-  crmProjectId    String?        @unique
+  // Интеграция с проектами Verso (1:1 по внешнему ID)
+  externalRefId    String?        @unique
   publishedAt     DateTime?
   scheduledFor    DateTime?
   createdAt       DateTime       @default(now())
@@ -154,7 +154,7 @@ model Revision {
 model Tag {
   id      String     @id @default(cuid())
   name    String     @unique
-  color   String     @default("#7c5cff")
+  color   String     @default("#f97316")
   entries EntryTag[]
 }
 

@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Manrope", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
-  --color-ink-950: oklch(0.16 0.02 285);
-  --color-ink-900: oklch(0.21 0.03 285);
-  --color-ink-800: oklch(0.27 0.04 285);
-  --color-ink-700: oklch(0.35 0.05 280);
-  --color-accent-500: #7c5cff;
-  --color-accent-400: #9d85ff;
-  --color-accent-600: #6440f2;
+  --color-ink-950: oklch(0.14 0.005 260);
+  --color-ink-900: oklch(0.19 0.01 260);
+  --color-ink-800: oklch(0.25 0.015 260);
+  --color-ink-700: oklch(0.33 0.02 260);
+  --color-accent-500: #f97316;
+  --color-accent-400: #fb923c;
+  --color-accent-600: #ea580c;
 }
 
 :root { color-scheme: dark light; }
@@ -32,13 +32,13 @@ h1, h2, h3, .font-display { font-family: var(--font-display); }
 
 /* A11y: видимое кольцо фокуса */
 :focus-visible {
-  outline: 2px solid #7c5cff;
+  outline: 2px solid #f97316;
   outline-offset: 2px;
 }
 
 /* Выделение текста */
 ::selection {
-  background: #7c5cff;
+  background: #f97316;
   color: #fff;
 }
 

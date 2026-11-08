@@ -23,7 +23,7 @@ const createdKeyIds: string[] = [];
 async function createKey(page: Page, name: string, scope: "READ" | "READ_WRITE", expiresAt?: string) {
   const { op } = await trpc(page, "apiKey.create", { name, scope, ...(expiresAt ? { expiresAt } : {}) });
   const key = op.result?.data.json as { id: string; raw: string };
-  expect(key.raw, "apiKey raw returned").toMatch(/^crv_live_/);
+  expect(key.raw, "apiKey raw returned").toMatch(/^vrs_live_/);
   createdKeyIds.push(key.id);
   return key;
 }
@@ -63,7 +63,7 @@ test.describe.serial("v1 scope matrix + viewer ban", () => {
     const r1 = await page.request.get("/api/v1/posts", { headers: { "x-api-key": exp.raw } });
     expect(r1.status()).toBe(403);
     expect(await r1.json()).toEqual({ error: "API key expired" });
-    const r2 = await page.request.get("/api/v1/posts", { headers: { "x-api-key": "crv_live_garbage" } });
+    const r2 = await page.request.get("/api/v1/posts", { headers: { "x-api-key": "vrs_live_garbage" } });
     expect(r2.status()).toBe(401);
     const r3 = await page.request.get("/api/v1/posts");
     expect(r3.status()).toBe(401);

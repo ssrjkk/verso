@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("landing renders brand", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Corvid CMS").first()).toBeVisible();
+  await expect(page.getByText("Verso").first()).toBeVisible();
 });
 
 test("sign-in form is displayed", async ({ page }) => {

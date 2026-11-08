@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-const COLORS = ["#7c5cff", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6"];
+const COLORS = ["#f97316", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6"];
 
 export function MonthlyBars({ data }: { data: { month: string; count: number }[] }) {
   return (
@@ -23,7 +23,7 @@ export function MonthlyBars({ data }: { data: { month: string; count: number }[]
         <XAxis dataKey="month" fontSize={12} />
         <YAxis fontSize={12} allowDecimals={false} />
         <Tooltip />
-        <Bar dataKey="count" fill="#7c5cff" radius={[6, 6, 0, 0]} />
+        <Bar dataKey="count" fill="#f97316" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

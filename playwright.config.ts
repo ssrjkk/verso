@@ -18,6 +18,8 @@ export default defineConfig({
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
+    // workers: 1 — все тесты делят e2e.db и public/uploads, параллель даёт гонки.
     { name: "chromium", dependencies: ["setup"], use: { ...devices["Desktop Chrome"] } },
   ],
+  workers: 1,
 });

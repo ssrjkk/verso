@@ -60,7 +60,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
         <span className="text-xs opacity-60">/{collection.slug}</span>
         <button
           onClick={() => setShowCreate(true)}
-          className="ml-auto rounded-lg bg-[#7c5cff] px-4 py-2 text-sm font-semibold text-white"
+          className="ml-auto rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white"
         >
           Создать запись
         </button>
@@ -94,7 +94,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Поиск по title/slug…"
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]"
+              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -106,7 +106,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
               value={tag}
               onChange={(e) => setTag(e.target.value)}
               placeholder="Фильтр по тегу…"
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]"
+              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
             />
           </div>
           <div className="pb-0.5">
@@ -137,13 +137,13 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
             {filtered.map((e) => (
               <tr key={e.id} className="border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5">
                 <td className="px-4 py-2 font-medium">
-                  <Link href={`/entries/${e.id}`} className="hover:text-[#7c5cff] hover:underline">
+                  <Link href={`/entries/${e.id}`} className="hover:text-[#f97316] hover:underline">
                     {e.title}
                   </Link>
                 </td>
                 <td className="px-4 py-2 font-mono text-xs opacity-70">{e.slug}</td>
                 <td className="px-4 py-2">
-                  <span className="rounded bg-[#7c5cff]/15 px-2 py-0.5 text-xs">{e.status}</span>
+                  <span className="rounded bg-[#f97316]/15 px-2 py-0.5 text-xs">{e.status}</span>
                 </td>
                 <td className="px-4 py-2 text-xs opacity-70">
                   {new Date(e.updatedAt).toLocaleString("ru-RU")}
@@ -152,7 +152,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                   <div className="flex flex-wrap gap-1.5">
                     <Link
                       href={`/entries/${e.id}`}
-                      className="rounded-lg border px-2 py-1 text-xs hover:border-[#7c5cff]"
+                      className="rounded-lg border px-2 py-1 text-xs hover:border-[#f97316]"
                     >
                       Builder
                     </Link>
@@ -171,7 +171,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                           seoDescription: e.seoDescription,
                         })
                       }
-                      className="rounded-lg border px-2 py-1 text-xs hover:border-[#7c5cff]"
+                      className="rounded-lg border px-2 py-1 text-xs hover:border-[#f97316]"
                     >
                       Ред.
                     </button>
@@ -215,7 +215,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                 setSearch("");
                 setTag("");
               }}
-              className="mt-3 rounded-lg border border-[#7c5cff] px-4 py-1.5 text-sm font-semibold text-[#7c5cff]"
+              className="mt-3 rounded-lg border border-[#f97316] px-4 py-1.5 text-sm font-semibold text-[#f97316]"
             >
               Сбросить фильтры
             </button>

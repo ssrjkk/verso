@@ -67,7 +67,7 @@ test.describe.serial("manager ops + negative auth", () => {
     const page = await ctx.newPage();
     try {
       await page.goto("/sign-in");
-      await page.locator("#signin-email").fill("editor@corvid.dev");
+      await page.locator("#signin-email").fill("editor@verso.dev");
       await page.locator("#signin-password").fill("wrong-password-123");
       await page.locator("form button").first().click();
       await expect(page.getByRole("alert")).toBeVisible({ timeout: 10000 });

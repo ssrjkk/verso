@@ -81,7 +81,7 @@ export function EntryForm({
   const saving = createEntry.isPending || updateEntry.isPending || setTags.isPending;
 
   const inputCls =
-    "w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#7c5cff]";
+    "w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]";
   const labelCls = "text-xs font-semibold uppercase tracking-wide opacity-60";
   const errCls = "text-xs text-red-500";
 
@@ -245,7 +245,7 @@ export function EntryForm({
           onClick={handleSave}
           disabled={saving}
           aria-busy={saving}
-          className="rounded-xl bg-[#7c5cff] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-xl bg-[#f97316] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {saving ? "Сохранение…" : isEdit ? "Сохранить" : "Создать"}
         </button>

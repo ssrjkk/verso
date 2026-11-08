@@ -54,12 +54,12 @@ function KanbanCard({ card, stageId }: { card: Card; stageId: string }) {
         if (e.key === "Enter") router.push(`/entries/${card.id}`);
       }}
       onDoubleClick={() => router.push(`/entries/${card.id}`)}
-      className="cursor-grab rounded-xl border bg-white p-2.5 text-sm outline-none active:cursor-grabbing focus-visible:border-[#7c5cff] focus-visible:ring-2 focus-visible:ring-[#7c5cff] dark:bg-black/30"
+      className="cursor-grab rounded-xl border bg-white p-2.5 text-sm outline-none active:cursor-grabbing focus-visible:border-[#f97316] focus-visible:ring-2 focus-visible:ring-[#f97316] dark:bg-black/30"
     >
       <div className="font-semibold leading-snug">{card.title}</div>
       <div className="mt-1 text-xs opacity-60">{card.collection.name}</div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[11px] font-bold text-[#7c5cff]">
+        <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#f97316]">
           {STATUS_LABELS[card.status] ?? card.status}
         </span>
         <span className="text-[11px] opacity-50">
@@ -82,7 +82,7 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={`flex min-h-[220px] flex-col rounded-2xl border p-3 transition-colors ${
-        isOver ? "border-2 border-[#7c5cff] bg-[#7c5cff]/8" : "bg-white/50 dark:bg-white/5"
+        isOver ? "border-2 border-[#f97316] bg-[#f97316]/8" : "bg-white/50 dark:bg-white/5"
       }`}
     >
       <div className="mb-2 flex items-center gap-2 text-sm font-bold">
@@ -93,7 +93,7 @@ function KanbanColumn({
       <div className="flex flex-col gap-2">
         {stage.entries.map((e) =>
           e.id === activeId ? (
-            <div key={e.id} className="rounded-xl border border-dashed border-[#7c5cff] p-2.5 text-xs opacity-50">
+            <div key={e.id} className="rounded-xl border border-dashed border-[#f97316] p-2.5 text-xs opacity-50">
               {e.title}
             </div>
           ) : (
@@ -192,7 +192,7 @@ export default function BoardPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Редполитика (Kanban)</h1>
         <span className="text-xs opacity-60">Перетаскивайте карточки между колонками</span>
-        {move.isPending ? <span className="text-xs font-semibold text-[#7c5cff]">Перемещение…</span> : null}
+        {move.isPending ? <span className="text-xs font-semibold text-[#f97316]">Перемещение…</span> : null}
       </div>
       {move.isError ? (
         <div className="rounded-xl border border-red-300 p-3 text-sm text-red-500">

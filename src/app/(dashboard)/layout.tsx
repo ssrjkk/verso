@@ -30,14 +30,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
       <a
         href="#content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-[#7c5cff] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-[#f97316] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Перейти к контенту
       </a>
       <aside className="no-print border-b border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-ink-900/60 md:flex md:min-h-screen md:flex-col md:gap-4 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between gap-3 md:block">
-          <Link href="/" className="font-display text-xl font-extrabold" aria-label="Corvid CMS — на главную">
-            Corvid <span className="text-[#7c5cff]">CMS</span>
+          <Link href="/" className="font-display text-xl font-extrabold" aria-label="Verso — на главную">
+            <span className="text-[#f97316]">Verso</span>
           </Link>
           <div className="md:hidden">
             <ThemeToggle />
@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10",
-                  isActive && "bg-[#7c5cff]/15 font-semibold text-[#7c5cff]",
+                  isActive && "bg-[#f97316]/15 font-semibold text-[#f97316]",
                 )}
               >
                 {n.label}

@@ -6,7 +6,7 @@ import { trpc } from "@/trpc/client";
 type EntryStatus = "DRAFT" | "IN_REVIEW" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
 
 const btnCls =
-  "rounded-lg border px-3 py-1.5 text-xs hover:border-[#7c5cff] disabled:opacity-50 whitespace-nowrap";
+  "rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316] disabled:opacity-50 whitespace-nowrap";
 
 export function ExportButton({
   collectionId,

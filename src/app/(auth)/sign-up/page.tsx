@@ -37,7 +37,7 @@ export default function SignUpPage() {
         }}
       >
         <h1 className="font-display text-2xl font-extrabold text-white">
-          Регистрация · Corvid <span className="text-[#7c5cff]">CMS</span>
+          Регистрация · <span className="text-[#f97316]">Verso</span>
         </h1>
         <p className="text-sm text-neutral-400">Создайте аккаунт для работы с контентом</p>
         <label htmlFor="signup-name" className="text-xs font-semibold text-neutral-300">
@@ -52,7 +52,7 @@ export default function SignUpPage() {
           autoComplete="name"
           required
           aria-invalid={err ? true : undefined}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#7c5cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#f97316] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         />
         <label htmlFor="signup-email" className="text-xs font-semibold text-neutral-300">
           Email
@@ -66,7 +66,7 @@ export default function SignUpPage() {
           autoComplete="email"
           required
           aria-invalid={err ? true : undefined}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#7c5cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#f97316] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         />
         <label htmlFor="signup-password" className="text-xs font-semibold text-neutral-300">
           Пароль
@@ -82,7 +82,7 @@ export default function SignUpPage() {
           minLength={8}
           aria-invalid={err ? true : undefined}
           aria-describedby="signup-password-hint"
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#7c5cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 outline-none focus:border-[#f97316] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         />
         <p id="signup-password-hint" className="sr-only">
           Пароль должен содержать минимум 8 символов
@@ -95,13 +95,13 @@ export default function SignUpPage() {
         <button
           disabled={loading}
           aria-label={loading ? "Создаём аккаунт" : "Создать аккаунт"}
-          className="rounded-xl bg-[#7c5cff] py-2.5 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c5cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
+          className="rounded-xl bg-[#f97316] py-2.5 font-semibold text-white transition hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f97316] focus-visible:ring-offset-2 focus-visible:ring-offset-[#12121a]"
         >
           {loading ? "Создаём…" : "Создать аккаунт"}
         </button>
         <p className="text-center text-sm text-neutral-400">
           Уже есть аккаунт?{" "}
-          <Link href="/sign-in" className="font-semibold text-[#7c5cff] hover:underline">
+          <Link href="/sign-in" className="font-semibold text-[#f97316] hover:underline">
             Войти
           </Link>
         </p>

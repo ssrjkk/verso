@@ -35,9 +35,9 @@ function asGalleryImages(v: unknown): GalleryImage[] {
 
 function Hero(p: AnyRecord) {
   return (
-    <section className="rounded-2xl border bg-gradient-to-br from-[#7c5cff]/10 via-transparent to-transparent p-8 text-center">
+    <section className="rounded-2xl border bg-gradient-to-br from-[#f97316]/10 via-transparent to-transparent p-8 text-center">
       {asString(p.eyebrow) ? (
-        <div className="mb-2 inline-block rounded-full border border-[#7c5cff]/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#7c5cff]">
+        <div className="mb-2 inline-block rounded-full border border-[#f97316]/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#f97316]">
           {asString(p.eyebrow)}
         </div>
       ) : null}
@@ -48,7 +48,7 @@ function Hero(p: AnyRecord) {
       {asString(p.ctaLabel) ? (
         <a
           href={asString(p.ctaHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-[#7c5cff] px-6 py-2.5 text-sm font-semibold text-white"
+          className="mt-5 inline-block rounded-xl bg-[#f97316] px-6 py-2.5 text-sm font-semibold text-white"
         >
           {asString(p.ctaLabel)}
         </a>
@@ -84,12 +84,12 @@ function Pricing(p: AnyRecord) {
         {plans.map((pl, i) => (
           <div
             key={i}
-            className={`rounded-xl border p-5 ${pl.featured ? "border-[#7c5cff] ring-1 ring-[#7c5cff]" : ""}`}
+            className={`rounded-xl border p-5 ${pl.featured ? "border-[#f97316] ring-1 ring-[#f97316]" : ""}`}
           >
             <div className="flex items-center justify-between">
               <div className="font-display font-bold">{asString(pl.name, `Тариф ${i + 1}`)}</div>
               {pl.featured ? (
-                <span className="rounded-full bg-[#7c5cff] px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
+                <span className="rounded-full bg-[#f97316] px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
               ) : null}
             </div>
             <div className="font-display mt-2 text-2xl font-extrabold">{asString(pl.price)}</div>
@@ -97,7 +97,7 @@ function Pricing(p: AnyRecord) {
             <ul className="mt-3 flex flex-col gap-1 text-sm">
               {asStringArray(pl.features).map((f, j) => (
                 <li key={j} className="flex gap-2">
-                  <span className="text-[#7c5cff]">✓</span>
+                  <span className="text-[#f97316]">✓</span>
                   <span>{f}</span>
                 </li>
               ))}
@@ -160,7 +160,7 @@ function Code(p: AnyRecord) {
     <section className="overflow-hidden rounded-2xl border">
       <div className="flex items-center justify-between border-b bg-black/5 px-4 py-2 dark:bg-white/5">
         <span className="text-xs font-semibold">{asString(p.title, "Код")}</span>
-        <span className="rounded bg-[#7c5cff]/15 px-2 py-0.5 font-mono text-xs text-[#7c5cff]">
+        <span className="rounded bg-[#f97316]/15 px-2 py-0.5 font-mono text-xs text-[#f97316]">
           {asString(p.language, "text")}
         </span>
       </div>
@@ -173,13 +173,13 @@ function Code(p: AnyRecord) {
 
 function Cta(p: AnyRecord) {
   return (
-    <section className="rounded-2xl bg-[#7c5cff] p-8 text-center text-white">
+    <section className="rounded-2xl bg-[#f97316] p-8 text-center text-white">
       <h3 className="font-display text-2xl font-extrabold">{asString(p.title, "Призыв к действию")}</h3>
       {asString(p.text) ? <p className="mx-auto mt-2 max-w-lg text-sm text-white/85">{asString(p.text)}</p> : null}
       {asString(p.buttonLabel) ? (
         <a
           href={asString(p.buttonHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#7c5cff]"
+          className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#f97316]"
         >
           {asString(p.buttonLabel)}
         </a>
@@ -205,21 +205,21 @@ export default function BlockRender({ type, propsJson }: { type: string; propsJs
 
   switch (type) {
     case "HERO":
-      return <Hero p={parsed} />;
+      return <Hero {...parsed} />;
     case "FEATURES":
-      return <Features p={parsed} />;
+      return <Features {...parsed} />;
     case "PRICING":
-      return <Pricing p={parsed} />;
+      return <Pricing {...parsed} />;
     case "FAQ":
-      return <Faq p={parsed} />;
+      return <Faq {...parsed} />;
     case "RICH_TEXT":
-      return <RichText p={parsed} />;
+      return <RichText {...parsed} />;
     case "GALLERY":
-      return <Gallery p={parsed} />;
+      return <Gallery {...parsed} />;
     case "CODE":
-      return <Code p={parsed} />;
+      return <Code {...parsed} />;
     case "CTA":
-      return <Cta p={parsed} />;
+      return <Cta {...parsed} />;
     default:
       return (
         <section className="rounded-2xl border border-dashed p-4 text-sm opacity-70">

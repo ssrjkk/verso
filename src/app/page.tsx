@@ -28,8 +28,8 @@ const MODULES = [
   },
   {
     glyph: "⌘",
-    title: "CRM-связка",
-    text: "Единая ink-система Corvid: контент и сделки говорят на одном языке.",
+    title: "Вебхуки и ревизии",
+    text: "События публикации для ревалидации и история версий с откатом.",
   },
 ];
 
@@ -40,21 +40,21 @@ export default function Home() {
     <div className="min-h-screen bg-[#f4f3fa] text-neutral-900 dark:bg-ink-950 dark:text-neutral-100">
       {/* Hero */}
       <header className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-10 pt-16 text-center sm:pt-24">
-        <p className="rounded-full border border-[#7c5cff]/30 bg-[#7c5cff]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#6440f2] dark:text-[#9d85ff]">
+        <p className="rounded-full border border-[#f97316]/30 bg-[#f97316]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#ea580c] dark:text-[#fb923c]">
           Next.js 16 · Headless CMS · Page Builder
         </p>
         <h1 className="mt-6 font-display text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-          Corvid <span className="text-[#7c5cff]">CMS</span> — контент,
+          Verso — контент,
           <br className="hidden sm:block" /> который удобно издавать
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-neutral-600 dark:text-neutral-400 sm:text-lg">
           Коллекции, ревизии, медиатека, SEO-инспектор, Headless API и канбан редполитики —
-          в фирменной «чернильной» дизайн-системе Corvid.
+          в редакционной дизайн-системе Verso.
         </p>
         <div className="no-print mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard"
-            className="rounded-xl bg-[#7c5cff] px-6 py-3 font-semibold text-white transition hover:bg-[#6440f2] focus-visible:outline-none"
+            className="rounded-xl bg-[#f97316] px-6 py-3 font-semibold text-white transition hover:bg-[#ea580c] focus-visible:outline-none"
           >
             Открыть дашборд
           </Link>
@@ -84,7 +84,7 @@ export default function Home() {
               >
                 <span
                   aria-hidden="true"
-                  className="grid size-10 place-items-center rounded-xl bg-[#7c5cff]/15 text-lg text-[#7c5cff] dark:text-[#9d85ff]"
+                  className="grid size-10 place-items-center rounded-xl bg-[#f97316]/15 text-lg text-[#f97316] dark:text-[#fb923c]"
                 >
                   {m.glyph}
                 </span>
@@ -115,7 +115,7 @@ export default function Home() {
       <footer className="border-t border-black/10 py-5 dark:border-white/10">
         <p className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-6 text-xs text-neutral-500 dark:text-neutral-500">
           <span>
-            Corvid <span className="text-[#7c5cff]">CMS</span> · ink-система Corvid
+            Verso · редакционная система
           </span>
           <span>tRPC · Prisma · Better Auth · Tailwind v4</span>
         </p>

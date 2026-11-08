@@ -68,7 +68,7 @@ export const DEFAULT_BLOCKS: Record<BlockType, object> = {
   FAQ: {
     title: "Частые вопросы",
     items: [
-      { q: "Что такое Corvid CMS?", a: "Блочная headless-CMS с визуальным конструктором страниц." },
+      { q: "Что такое Verso?", a: "Блочная headless-CMS с визуальным конструктором страниц." },
       { q: "Как опубликовать запись?", a: "Заполните блоки, проверьте превью и нажмите «Опубликовать»." },
       { q: "Можно ли откатить изменения?", a: "Да, каждая правка сохраняется как ревизия, откат — в один клик." },
     ],
@@ -81,15 +81,15 @@ export const DEFAULT_BLOCKS: Record<BlockType, object> = {
   GALLERY: {
     title: "Галерея",
     images: [
-      { src: "https://picsum.photos/seed/corvid1/640/400", alt: "Изображение 1" },
-      { src: "https://picsum.photos/seed/corvid2/640/400", alt: "Изображение 2" },
-      { src: "https://picsum.photos/seed/corvid3/640/400", alt: "Изображение 3" },
+      { src: "https://picsum.photos/seed/verso1/640/400", alt: "Изображение 1" },
+      { src: "https://picsum.photos/seed/verso2/640/400", alt: "Изображение 2" },
+      { src: "https://picsum.photos/seed/verso3/640/400", alt: "Изображение 3" },
     ],
   },
   CODE: {
     title: "Пример кода",
     language: "typescript",
-    code: 'const hello = "Corvid CMS";\nconsole.log(hello);',
+    code: 'const hello = "Verso";\nconsole.log(hello);',
   },
   CTA: {
     title: "Готовы начать?",

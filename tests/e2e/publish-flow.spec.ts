@@ -4,6 +4,9 @@ import { test, expect } from "@playwright/test";
 // + скан консольных ошибок на ключевых экранах.
 test("publish lifecycle + console clean", async ({ page }) => {
   const errors: string[] = [];
+  page.on("response", (r) => {
+    if (r.status() >= 400 && !r.url().includes("favicon")) errors.push(`HTTP-${r.status()}: ${r.url()}`);
+  });
   page.on("console", (m) => {
     if (m.type() === "error" && !m.text().includes("favicon")) errors.push(m.text());
   });
@@ -16,8 +19,8 @@ test("publish lifecycle + console clean", async ({ page }) => {
 
   // 1. Вход админом (ADMIN может всё, включая создание коллекций)
   await page.goto("/sign-in");
-  await page.locator("#signin-email").fill("test@corvid.dev");
-  await page.locator("#signin-password").fill("password123");
+  await page.locator("#signin-email").fill("admin@verso.dev");
+  await page.locator("#signin-password").fill("Test12345!");
   await page.locator("form button").first().click();
   await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 

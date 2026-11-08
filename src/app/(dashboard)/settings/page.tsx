@@ -28,13 +28,13 @@ export default function SettingsPage() {
       <section className="flex flex-col gap-4">
         <h1 className="font-display text-2xl font-extrabold">Настройки · API-ключи</h1>
         {lastRaw && (
-          <div className="break-all rounded-xl border border-[#7c5cff] p-3 text-sm">
+          <div className="break-all rounded-xl border border-[#f97316] p-3 text-sm">
             Новый ключ (показывается один раз):{" "}
             <code className="rounded bg-black/5 px-1.5 py-0.5 font-mono dark:bg-white/10">{lastRaw}</code>{" "}
             <button
               type="button"
               onClick={() => void navigator.clipboard.writeText(lastRaw)}
-              className="ml-2 rounded-lg border px-2 py-1 text-xs font-semibold hover:border-[#7c5cff]"
+              className="ml-2 rounded-lg border px-2 py-1 text-xs font-semibold hover:border-[#f97316]"
             >
               Скопировать
             </button>
@@ -52,7 +52,7 @@ export default function SettingsPage() {
               { name, scope, ...(expiry ? { expiresAt: new Date(expiry).toISOString() } : {}) },
               { onSuccess: (d) => { setLastRaw(d.raw); setName(""); setExpiry(""); } },
             )}
-            className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white"
           >
             Выпустить
           </button>
@@ -92,7 +92,7 @@ export default function SettingsPage() {
           <input value={whForm.events} onChange={(e) => setWhForm({ ...whForm, events: e.target.value })} placeholder="events csv" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
           <button
             onClick={() => whForm.name && whForm.url && whCreate.mutate(whForm)}
-            className="rounded-lg bg-[#7c5cff] px-4 py-2 text-sm text-white"
+            className="rounded-lg bg-[#f97316] px-4 py-2 text-sm text-white"
           >
             Добавить
           </button>

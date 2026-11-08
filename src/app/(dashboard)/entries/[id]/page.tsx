@@ -85,7 +85,7 @@ function SortableBlockRow({
         >
           ⋮⋮
         </button>
-        <span className="rounded-full bg-[#7c5cff]/12 px-2.5 py-0.5 text-xs font-bold text-[#7c5cff]">
+        <span className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 text-xs font-bold text-[#f97316]">
           {BLOCK_TYPE_LABELS[block.type]} · #{index + 1}
         </span>
         {!block.isVisible ? (
@@ -96,14 +96,14 @@ function SortableBlockRow({
             type="button"
             onClick={onToggleVisible}
             title={block.isVisible ? "Скрыть" : "Показать"}
-            className="rounded-lg border px-2 py-1 text-xs hover:border-[#7c5cff]"
+            className="rounded-lg border px-2 py-1 text-xs hover:border-[#f97316]"
           >
             {block.isVisible ? "👁" : "🚫"}
           </button>
           <button
             type="button"
             onClick={onToggleExpand}
-            className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-[#7c5cff]"
+            className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-[#f97316]"
           >
             {expanded ? "Свернуть" : "Редактировать"}
           </button>
@@ -310,14 +310,14 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-5">
       <div className="no-print flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Конструктор: {entry.title}</h1>
-        <span className="rounded-full bg-[#7c5cff]/12 px-3 py-1 text-xs font-bold text-[#7c5cff]">
+        <span className="rounded-full bg-[#f97316]/12 px-3 py-1 text-xs font-bold text-[#f97316]">
           {STATUS_LABELS[entry.status] ?? entry.status}
         </span>
         <div className="ml-auto flex gap-2">
           <button
             type="button"
             onClick={() => window.print()}
-            className="rounded-xl border px-4 py-2 text-sm font-semibold hover:border-[#7c5cff]"
+            className="rounded-xl border px-4 py-2 text-sm font-semibold hover:border-[#f97316]"
           >
             🖨 Печать
           </button>
@@ -325,7 +325,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             type="button"
             onClick={handleSave}
             disabled={saveBlocks.isPending}
-            className="rounded-xl bg-[#7c5cff] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-xl bg-[#f97316] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
           >
             {saveBlocks.isPending ? "Сохранение…" : "Сохранить блоки"}
           </button>
@@ -333,7 +333,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       </div>
 
       {feedback ? (
-        <div className="no-print rounded-xl border border-[#7c5cff]/40 bg-[#7c5cff]/8 px-4 py-2 text-sm">{feedback}</div>
+        <div className="no-print rounded-xl border border-[#f97316]/40 bg-[#f97316]/8 px-4 py-2 text-sm">{feedback}</div>
       ) : null}
 
       {/* Добавить блоки */}
@@ -345,7 +345,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               key={t}
               type="button"
               onClick={() => addBlock(t)}
-              className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:border-[#7c5cff] hover:text-[#7c5cff]"
+              className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:border-[#f97316] hover:text-[#f97316]"
             >
               + {BLOCK_TYPE_LABELS[t]}
             </button>
@@ -405,7 +405,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block" htmlFor="seo-title">
             <span className="mb-1 block text-xs font-semibold opacity-70">Заголовок</span>
-            <input id="seo-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <input id="seo-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
           </label>
           <div className="block">
             <label htmlFor="seo-slug" className="mb-1 block text-xs font-semibold opacity-70">Slug</label>
@@ -415,7 +415,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               onChange={(e) => setSlug(e.target.value)}
               aria-invalid={!slugValid}
               aria-describedby="seo-slug-hint"
-              className={`w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#7c5cff] ${!slugValid ? "border-red-500" : ""}`}
+              className={`w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#f97316] ${!slugValid ? "border-red-500" : ""}`}
             />
             <p id="seo-slug-hint" className="mt-1 text-xs opacity-60">
               Только латиница, цифры и дефисы (a-z, 0-9, -).
@@ -424,16 +424,16 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
           </div>
           <label className="block sm:col-span-2" htmlFor="seo-excerpt">
             <span className="mb-1 block text-xs font-semibold opacity-70">Анонс (excerpt)</span>
-            <textarea id="seo-excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={2} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <textarea id="seo-excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={2} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
           </label>
           <div className="block">
             <label htmlFor="seo-meta-title" className="mb-1 block text-xs font-semibold opacity-70">SEO-заголовок</label>
-            <input id="seo-meta-title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={120} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <input id="seo-meta-title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={120} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
             <p className="mt-1 text-xs opacity-60" aria-live="polite">{seoTitle.length}/60 — оптимально до 60 символов</p>
           </div>
           <div className="block">
             <label htmlFor="seo-meta-desc" className="mb-1 block text-xs font-semibold opacity-70">SEO-описание</label>
-            <input id="seo-meta-desc" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={320} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <input id="seo-meta-desc" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={320} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
             <p className="mt-1 text-xs opacity-60" aria-live="polite">{seoDescription.length}/160 — оптимально до 160 символов</p>
           </div>
           <div className="block sm:col-span-2">
@@ -443,17 +443,17 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               value={ogImage}
               onChange={(e) => setOgImage(e.target.value)}
               placeholder="https://…/og.png"
-              className="w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#7c5cff]"
+              className="w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#f97316]"
             />
             <p className="mt-1 text-xs opacity-60">Используется только для предпросмотра ниже.</p>
           </div>
           <label className="block" htmlFor="seo-scheduled">
             <span className="mb-1 block text-xs font-semibold opacity-70">Запланировать на</span>
-            <input id="seo-scheduled" type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <input id="seo-scheduled" type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
           </label>
           <label className="block" htmlFor="seo-status">
             <span className="mb-1 block text-xs font-semibold opacity-70">Статус</span>
-            <select id="seo-status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]">
+            <select id="seo-status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]">
               {Object.entries(STATUS_LABELS).map(([v, label]) => (
                 <option key={v} value={v}>{label}</option>
               ))}
@@ -461,7 +461,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
           </label>
           <label className="block sm:col-span-2" htmlFor="seo-note">
             <span className="mb-1 block text-xs font-semibold opacity-70">Комментарий к изменению</span>
-            <input id="seo-note" value={saveNote} onChange={(e) => setSaveNote(e.target.value)} placeholder="Например: обновил hero и тарифы" className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#7c5cff]" />
+            <input id="seo-note" value={saveNote} onChange={(e) => setSaveNote(e.target.value)} placeholder="Например: обновил hero и тарифы" className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
           </label>
         </div>
         <div className="mt-4">
@@ -479,7 +479,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={handleSeoSave}
             disabled={updateEntry.isPending || !slugValid}
             aria-busy={updateEntry.isPending}
-            className="rounded-xl border border-[#7c5cff] px-5 py-2 text-sm font-bold text-[#7c5cff] disabled:opacity-50"
+            className="rounded-xl border border-[#f97316] px-5 py-2 text-sm font-bold text-[#f97316] disabled:opacity-50"
           >
             {updateEntry.isPending ? "Сохранение…" : "Сохранить SEO"}
           </button>
@@ -488,7 +488,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={() => publishEntry.mutate({ id })}
             disabled={publishEntry.isPending}
             aria-busy={publishEntry.isPending}
-            className="rounded-xl bg-[#7c5cff] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-xl bg-[#f97316] px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
           >
             {publishEntry.isPending ? "Публикация…" : "Опубликовать"}
           </button>
@@ -504,7 +504,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col gap-2">
             {revisions.map((r, idx) => (
               <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm">
-                <span className="rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-xs font-bold text-[#7c5cff]">v{r.version}</span>
+                <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-xs font-bold text-[#f97316]">v{r.version}</span>
                 <span className="opacity-80">{r.changeNote ?? "Без комментария"}</span>
                 <span className="text-xs opacity-50" title={new Date(r.createdAt).toLocaleString("ru-RU")}>
                   {new Date(r.createdAt).toLocaleString("ru-RU")} · {relativeTime(r.createdAt)}
@@ -515,7 +515,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
                   disabled={restoreRevision.isPending || idx === 0}
                   title={idx === 0 ? "Текущая версия" : `Откатить к v${r.version}`}
                   aria-label={idx === 0 ? `Текущая версия v${r.version}` : `Откатить к версии ${r.version}`}
-                  className="ml-auto rounded-lg border px-3 py-1 text-xs font-semibold hover:border-[#7c5cff] disabled:opacity-50"
+                  className="ml-auto rounded-lg border px-3 py-1 text-xs font-semibold hover:border-[#f97316] disabled:opacity-50"
                 >
                   {idx === 0 ? "Текущая" : "Откатить"}
                 </button>

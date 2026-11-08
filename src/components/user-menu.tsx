@@ -10,7 +10,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 const ROLE_STYLE: Record<string, string> = {
-  ADMIN: "bg-[#7c5cff]/15 text-[#7c5cff]",
+  ADMIN: "bg-[#f97316]/15 text-[#f97316]",
   MANAGER: "bg-sky-500/15 text-sky-400",
   VIEWER: "bg-white/10 text-neutral-400",
 };
@@ -32,7 +32,7 @@ export function UserMenu() {
       <button
         onClick={() => router.push("/sign-in")}
         aria-label="Войти в аккаунт"
-        className="w-full rounded-xl bg-[#7c5cff] py-2 text-sm font-semibold text-white hover:brightness-110 focus-visible:outline-none"
+        className="w-full rounded-xl bg-[#f97316] py-2 text-sm font-semibold text-white hover:brightness-110 focus-visible:outline-none"
       >
         Войти
       </button>
@@ -43,7 +43,7 @@ export function UserMenu() {
   const role = (user as { role?: string }).role ?? "VIEWER";
 
   return (
-    <div aria-label={`Пользователь ${user.email}`} className="rounded-xl border border-black/10 p-3 focus-within:border-[#7c5cff] dark:border-white/10">
+    <div aria-label={`Пользователь ${user.email}`} className="rounded-xl border border-black/10 p-3 focus-within:border-[#f97316] dark:border-white/10">
       <p className="truncate font-display text-sm font-bold">{user.name || "Пользователь"}</p>
       <p className="truncate text-xs text-neutral-500">{user.email}</p>
       <span

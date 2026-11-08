@@ -13,7 +13,7 @@ async function fireWebhooks(prisma: { webhookEndpoint: { findMany: (a: unknown) 
       targets.map((e) =>
         fetch(e.url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Corvid-Event": event, "X-Corvid-Sign": e.secret },
+          headers: { "Content-Type": "application/json", "X-Verso-Event": event, "X-Verso-Sign": e.secret },
           body: JSON.stringify({ event, data: payload }),
         }),
       ),

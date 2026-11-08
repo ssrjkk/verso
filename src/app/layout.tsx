@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { Manrope, Inter } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-display" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  title: "Corvid CMS",
-  description: "Блочно-коллекционная Headless CMS + Page Builder в дизайн-системе Corvid",
+  title: "Verso",
+  description: "Редакционный Headless CMS + конструктор страниц Verso",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={`${manrope.variable} ${inter.variable} antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${inter.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <Providers>{children}</Providers>
         </ThemeProvider>

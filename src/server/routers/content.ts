@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 
 export const blockRouter = createTRPCRouter({
@@ -35,7 +36,7 @@ export const workflowRouter = createTRPCRouter({
     ctx.prisma.workflowStage.findMany({ orderBy: { order: "asc" }, include: { entries: { include: { collection: true } } } }),
   ),
   createStage: adminProcedure
-    .input(z.object({ name: z.string(), color: z.string().default("#7c5cff"), targetState: z.string().default("DRAFT") }))
+    .input(z.object({ name: z.string(), color: z.string().default("#f97316"), targetState: z.string().default("DRAFT") }))
     .mutation(async ({ ctx, input }) => {
       const count = await ctx.prisma.workflowStage.count();
       return ctx.prisma.workflowStage.create({ data: { ...input, order: count } });
@@ -63,9 +64,22 @@ export const mediaRouter = createTRPCRouter({
   updateAlt: editorProcedure
     .input(z.object({ id: z.string(), altText: z.string() }))
     .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.update({ where: { id: input.id }, data: { altText: input.altText } })),
-  remove: adminProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>
-    ctx.prisma.mediaAsset.delete({ where: { id: input.id } })
-  ),
+  remove: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const asset = await ctx.prisma.mediaAsset.findUnique({ where: { id: input.id } });
+    if (!asset) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Файл не найден" });
+    }
+    await ctx.prisma.mediaAsset.delete({ where: { id: input.id } });
+    // Удаляем физический файл, чтобы не копились сироты в public/uploads.
+    try {
+      const { unlink } = await import("node:fs/promises");
+      const path = await import("node:path");
+      const root = path.join(process.cwd(), "public", "uploads") + path.sep;
+      const target = path.normalize(path.join(process.cwd(), "public", asset.url));
+      if (target.startsWith(root)) await unlink(target).catch(() => {});
+    } catch { /* best effort */ }
+    return { ok: true };
+  }),
   deleteMany: adminProcedure
     .input(z.object({ ids: z.array(z.string()).min(1) }))
     .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.deleteMany({ where: { id: { in: input.ids } } })),
@@ -124,12 +138,12 @@ export const apiKeyRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const crypto = await import("node:crypto");
-      const raw = `crv_live_${crypto.randomBytes(24).toString("hex")}`;
+      const raw = `vrs_live_${crypto.randomBytes(24).toString("hex")}`;
       const hash = crypto.createHash("sha256").update(raw).digest("hex");
       const created = await ctx.prisma.apiKey.create({
         data: {
           name: input.name,
-          prefix: "crv_live_",
+          prefix: "vrs_live_",
           keyHash: hash,
           scope: input.scope,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
@@ -195,7 +209,7 @@ export const webhookRouter = createTRPCRouter({
       try {
         const res = await fetch(endpoint.url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Corvid-Event": "ping", "X-Corvid-Sign": sign },
+          headers: { "Content-Type": "application/json", "X-Verso-Event": "ping", "X-Verso-Sign": sign },
           body: payload,
         });
         return { ok: res.ok, status: res.status };

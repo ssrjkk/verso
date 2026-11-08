@@ -7,8 +7,8 @@ const PNG_1PX = Buffer.from(
   "base64",
 );
 
-// Счастливый путь загрузки: 201, файл в списке, статистика выросла.
-test("upload happy path: png 201 + виден в медиатеке", async ({ page }) => {
+// Счастливый путь загрузки: 201, файл в списке, статистика выросла + cleanup.
+test("upload happy path: png 201 + виден в медиатеке", async ({ page, browser }) => {
   await page.goto("/media");
   await expect(page.locator('input[type="file"]')).toBeVisible({ timeout: 15000 });
 
@@ -29,4 +29,19 @@ test("upload happy path: png 201 + виден в медиатеке", async ({ p
   const after = await page.request.get("/api/trpc/media.stats?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D");
   const afterJson = (await after.json()) as Array<{ result: { data: { json: { total: number } } } }>;
   expect(afterJson[0].result.data.json.total).toBeGreaterThan(totalBefore);
+  // Чистим за собой: удаляем загруженный ассет (строка + файл), чтобы не
+  // засорять shared e2e.db и не давать 404 другим тестам.
+  const listed = await page.request.get(
+    `/api/trpc/media.list?batch=1&input=${encodeURIComponent(JSON.stringify({ "0": { json: { search: fname } } }))}`,
+  );
+  const found = ((await listed.json()) as Array<{ result: { data: { json: Array<{ id: string }> } } }>)[0].result.data.json;
+  if (found.length > 0) {
+    const actx = await browser.newContext({ storageState: "tests/e2e/.auth/admin.json" });
+    const apage = await actx.newPage();
+    await apage.request.post("/api/trpc/media.remove?batch=1", {
+      headers: { "content-type": "application/json" },
+      data: { "0": { json: { id: found[0].id } } },
+    });
+    await actx.close();
+  }
 });
