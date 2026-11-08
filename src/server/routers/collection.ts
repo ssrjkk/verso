@@ -4,12 +4,15 @@ import { slugify } from "@/lib/slug";
 import { toCsv, parseCsv } from "@/lib/csv";
 
 export const collectionRouter = createTRPCRouter({
-  list: protectedProcedure.query(({ ctx }) =>
-    ctx.prisma.collection.findMany({
-      include: { _count: { select: { entries: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-  ),
+  list: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(1000).optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.prisma.collection.findMany({
+        include: { _count: { select: { entries: true } } },
+        orderBy: { createdAt: "asc" },
+        take: input?.limit ?? 500,
+      }),
+    ),
   get: protectedProcedure.input(z.object({ slug: z.string() })).query(({ ctx, input }) =>
     ctx.prisma.collection.findUnique({
       where: { slug: input.slug },
@@ -19,11 +22,11 @@ export const collectionRouter = createTRPCRouter({
   create: adminProcedure
     .input(
       z.object({
-        name: z.string().min(1),
-        slug: z.string().optional(),
-        description: z.string().optional(),
-        icon: z.string().default("FileText"),
-        schemaJson: z.string().default("[]"),
+        name: z.string().min(1).max(200),
+        slug: z.string().max(150).optional(),
+        description: z.string().max(2000).optional(),
+        icon: z.string().max(50).default("FileText"),
+        schemaJson: z.string().max(200_000).default("[]"),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -38,7 +41,7 @@ export const collectionRouter = createTRPCRouter({
       }),
     ),
   update: adminProcedure
-    .input(z.object({ id: z.string(), name: z.string().optional(), description: z.string().optional(), schemaJson: z.string().optional() }))
+    .input(z.object({ id: z.string(), name: z.string().min(1).max(200).optional(), description: z.string().max(2000).optional(), schemaJson: z.string().max(200_000).optional() }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.collection.update({ where: { id: input.id }, data: { name: input.name, description: input.description, schemaJson: input.schemaJson } }),
     ),
@@ -79,7 +82,7 @@ export const collectionRouter = createTRPCRouter({
 
   // Импорт записей из CSV-строки. Строки без title и дубли slug пропускаются.
   importCsv: editorProcedure
-    .input(z.object({ collectionId: z.string(), csv: z.string(), authorId: z.string().optional() }))
+    .input(z.object({ collectionId: z.string(), csv: z.string().max(5_000_000), authorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const rows = parseCsv(input.csv);
       if (!rows.length) return { imported: 0, skipped: 0 };

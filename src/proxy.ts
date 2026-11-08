@@ -22,7 +22,7 @@ function hasSessionCookie(req: NextRequest): boolean {
     .some((c) => c.name.includes("better-auth.session_token") && Boolean(c.value));
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
   const isProtected = PROTECTED.some(

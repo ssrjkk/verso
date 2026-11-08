@@ -62,8 +62,8 @@ export const mediaRouter = createTRPCRouter({
     ),
   create: editorProcedure
     .input(z.object({
-      filename: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number(),
-      width: z.number().optional(), height: z.number().optional(), altText: z.string().default(""), folder: z.string().default("root"),
+      filename: z.string().min(1).max(500), url: z.string().max(2000), mimeType: z.string().max(100), sizeBytes: z.number().int().min(0),
+      width: z.number().optional(), height: z.number().optional(), altText: z.string().max(500).default(""), folder: z.string().max(40).default("root"),
     }))
     .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.create({ data: input })),
   updateAlt: editorProcedure
@@ -176,20 +176,20 @@ export const webhookRouter = createTRPCRouter({
   ),
   create: adminProcedure
     .input(z.object({
-      name: z.string().min(1),
+      name: z.string().min(1).max(200),
       url: z.string().url(),
-      secret: z.string().min(1),
-      events: z.string().default("entry.published,entry.updated"),
+      secret: z.string().min(1).max(500),
+      events: z.string().max(500).default("entry.published,entry.updated"),
       isActive: z.boolean().default(true),
     }))
     .mutation(({ ctx, input }) => ctx.prisma.webhookEndpoint.create({ data: input })),
   update: adminProcedure
     .input(z.object({
       id: z.string(),
-      name: z.string().optional(),
+      name: z.string().min(1).max(200).optional(),
       url: z.string().url().optional(),
-      secret: z.string().optional(),
-      events: z.string().optional(),
+      secret: z.string().min(1).max(500).optional(),
+      events: z.string().max(500).optional(),
     }))
     .mutation(({ ctx, input }) => {
       const { id, ...data } = input;

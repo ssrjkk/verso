@@ -75,10 +75,10 @@ export const entryRouter = createTRPCRouter({
     .input(
       z.object({
         collectionId: z.string(),
-        title: z.string().min(1),
-        slug: z.string().optional(),
-        excerpt: z.string().optional(),
-        fieldsJson: z.string().default("{}"),
+        title: z.string().min(1).max(300),
+        slug: z.string().max(150).optional(),
+        excerpt: z.string().max(5000).optional(),
+        fieldsJson: z.string().max(200_000).default("{}"),
         stageId: z.string().optional(),
       }),
     )
@@ -116,15 +116,15 @@ export const entryRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
-        title: z.string().optional(),
-        slug: z.string().optional(),
-        excerpt: z.string().optional(),
+        title: z.string().min(1).max(300).optional(),
+        slug: z.string().max(150).optional(),
+        excerpt: z.string().max(5000).optional(),
         status: Status.optional(),
-        fieldsJson: z.string().optional(),
-        seoTitle: z.string().optional(),
-        seoDescription: z.string().optional(),
+        fieldsJson: z.string().max(200_000).optional(),
+        seoTitle: z.string().max(200).optional(),
+        seoDescription: z.string().max(500).optional(),
         scheduledFor: z.string().optional(),
-        changeNote: z.string().optional(),
+        changeNote: z.string().max(1000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -27,6 +27,20 @@ describe("input validation contracts", () => {
     await expect(caller("MANAGER").entry.create({ collectionId: "c1", title: "" })).rejects.toThrow();
   });
 
+  it("entry.create: title >300 и fieldsJson >200k -> ошибка", async () => {
+    await expect(
+      caller("MANAGER").entry.create({ collectionId: "c1", title: "x".repeat(301) }),
+    ).rejects.toThrow();
+    await expect(
+      caller("MANAGER").entry.create({ collectionId: "c1", title: "T", fieldsJson: "x".repeat(200_001) }),
+    ).rejects.toThrow();
+  });
+
+  it("entry.update: seoTitle >200, changeNote >1000 -> ошибка", async () => {
+    await expect(caller("MANAGER").entry.update({ id: "e1", seoTitle: "x".repeat(201) })).rejects.toThrow();
+    await expect(caller("MANAGER").entry.update({ id: "e1", changeNote: "x".repeat(1001) })).rejects.toThrow();
+  });
+
   it("collection.create: пустое name -> ошибка", async () => {
     await expect(caller().collection.create({ name: "" })).rejects.toThrow();
   });
@@ -67,5 +81,35 @@ describe("input validation contracts", () => {
     await c.media.list({});
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 200 }));
     await expect(c.media.list({ limit: 9999 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("importCsv: csv >5MB -> ошибка", async () => {
+    await expect(
+      caller("MANAGER").collection.importCsv({ collectionId: "c1", csv: "x".repeat(5_000_001) }),
+    ).rejects.toThrow();
+  });
+
+  it("task.create: пустой title -> ошибка", async () => {
+    await expect(caller("MANAGER").task.create({ title: "" })).rejects.toThrow();
+  });
+
+  it("media.create: слишком длинные поля -> ошибка", async () => {
+    await expect(
+      caller("MANAGER").media.create({ filename: "f", url: "u".repeat(2001), mimeType: "image/png", sizeBytes: 1 }),
+    ).rejects.toThrow();
+  });
+
+  it("webhook.create: имя >200 и secret >500 -> ошибка", async () => {
+    await expect(
+      caller().webhook.create({ name: "x".repeat(201), url: "https://a.b/h", secret: "s" }),
+    ).rejects.toThrow();
+    await expect(
+      caller().webhook.create({ name: "n", url: "https://a.b/h", secret: "s".repeat(501) }),
+    ).rejects.toThrow();
+  });
+
+  it("collection.create: name >200 и schemaJson >200k -> ошибка", async () => {
+    await expect(caller().collection.create({ name: "x".repeat(201) })).rejects.toThrow();
+    await expect(caller().collection.create({ name: "N", schemaJson: "x".repeat(200_001) })).rejects.toThrow();
   });
 });

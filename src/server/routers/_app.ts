@@ -10,7 +10,7 @@ const taskRouter = createTRPCRouter({
     ctx.prisma.editorialTask.findMany({ orderBy: { dueDate: "asc" }, include: { entry: true } }),
   ),
   create: editorProcedure
-    .input(z.object({ title: z.string(), description: z.string().optional(), dueDate: z.string().optional(), entryId: z.string().optional(), priority: z.string().default("MEDIUM") }))
+    .input(z.object({ title: z.string().min(1).max(300), description: z.string().max(5000).optional(), dueDate: z.string().optional(), entryId: z.string().optional(), priority: z.string().default("MEDIUM") }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.editorialTask.create({
         data: {

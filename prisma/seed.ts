@@ -27,13 +27,19 @@ async function ensureUser(u: (typeof USERS)[number]) {
       body: { name: u.name, email: u.email, password: u.password },
     });
     console.log(`created: ${u.email}`);
-  } catch (e) {
-    console.log(`exists (keep): ${u.email}`);
+    // Роль выставляем ТОЛЬКО при создании: повторный сид не должен
+    // затирать вручную изменённые роли (иначе разжалование откатывается).
+    await prisma.user.update({
+      where: { email: u.email },
+      data: { name: u.name, role: u.role, emailVerified: true },
+    });
+  } catch {
+    console.log(`exists (keep role): ${u.email}`);
+    await prisma.user.update({
+      where: { email: u.email },
+      data: { name: u.name, emailVerified: true },
+    });
   }
-  await prisma.user.update({
-    where: { email: u.email },
-    data: { name: u.name, role: u.role, emailVerified: true },
-  });
 }
 
 async function main() {
