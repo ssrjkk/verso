@@ -69,6 +69,32 @@ describe("RBAC: реальные процедуры, без БД", () => {
     await expect(c.entry.remove({ id: "e1" })).resolves.toEqual({ ok: true });
   });
 
+  it("entry.update: stale expectedUpdatedAt -> CONFLICT, fresh -> OK (атомарно)", async () => {
+    const mk = (stored: Date) => {
+      const tx = {
+        entry: {
+          findUnique: vi.fn(async () => ({ updatedAt: stored })),
+          update: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "e1", status: "DRAFT", ...a.data })),
+        },
+        revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
+      };
+      const prisma = { ...mockPrisma(), $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)) };
+      return { tx, prisma, caller: caller("MANAGER", prisma) };
+    };
+    const stored = new Date("2026-01-01T00:00:00.000Z");
+    const stale = mk(stored);
+    await expect(
+      stale.caller.entry.update({ id: "e1", title: "X", expectedUpdatedAt: new Date("2026-06-01T00:00:00.000Z").toISOString() }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(stale.tx.entry.update).not.toHaveBeenCalled();
+    expect(stale.tx.revision.create).not.toHaveBeenCalled();
+
+    const fresh = mk(stored);
+    const out = await fresh.caller.entry.update({ id: "e1", title: "X", expectedUpdatedAt: stored.toISOString() });
+    expect((out as { title: string }).title).toBe("X");
+    expect(fresh.tx.revision.create).toHaveBeenCalledTimes(1);
+  });
+
   it("ADMIN: всё OK", async () => {
     const c = caller("ADMIN", mockPrisma());
     await expect(c.entry.list({})).resolves.toEqual([]);

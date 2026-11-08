@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toCsv, parseCsv } from "@/lib/csv";
+import { toCsv, parseCsv, sanitizeCsvCell } from "@/lib/csv";
 
 describe("csv RFC4180", () => {
   it("roundtrip with quotes", () => {
@@ -51,5 +51,20 @@ describe("csv RFC4180 edge cases", () => {
     const parsed = parseCsv(csv);
     expect(parsed[0]).toEqual(["title", "slug", "status", "updatedAt"]);
     expect(parsed[1]).toEqual(["T", "s", "DRAFT", "2026-01-01T00:00:00.000Z"]);
+  });
+});
+
+describe("sanitizeCsvCell: нейтрализация формул", () => {
+  it.each([["=cmd|' /C calc'!A0"], ["+1+1"], ["-2+3"], ["@SUM(A1:A10)"], ["\tindented"], ["\rX"]])(
+    "экранирует %p",
+    (v) => {
+      expect(sanitizeCsvCell(v).startsWith("'")).toBe(true);
+    },
+  );
+  it("не трогает обычный текст и числа", () => {
+    expect(sanitizeCsvCell("Обычный заголовок")).toBe("Обычный заголовок");
+    expect(sanitizeCsvCell(42)).toBe("42");
+    expect(sanitizeCsvCell("")).toBe("");
+    expect(sanitizeCsvCell(null)).toBe("");
   });
 });

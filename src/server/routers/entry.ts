@@ -7,14 +7,22 @@ const Status = z.enum(["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED
 
 async function fireWebhooks(prisma: { webhookEndpoint: { findMany: (a: unknown) => Promise<{ url: string; secret: string; events: string; isActive: boolean }[]> } }, event: string, payload: unknown) {
   try {
+    const { createHmac } = await import("node:crypto");
+    const body = JSON.stringify({ event, data: payload });
     const endpoints = await prisma.webhookEndpoint.findMany({ where: { isActive: true } } as never);
     const targets = endpoints.filter((e) => e.events.split(",").map((s) => s.trim()).includes(event));
     await Promise.allSettled(
       targets.map((e) =>
         fetch(e.url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Verso-Event": event, "X-Verso-Sign": e.secret },
-          body: JSON.stringify({ event, data: payload }),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Verso-Event": event,
+            // HMAC-подпись тела вместо голого секрета: получатель проверяет
+            // целостность, секрет по сети не путешествует в открытом виде.
+            "X-Verso-Sign": `sha256=${createHmac("sha256", e.secret).update(body).digest("hex")}`,
+          },
+          body,
         }),
       ),
     );
@@ -125,28 +133,46 @@ export const entryRouter = createTRPCRouter({
         seoDescription: z.string().max(500).optional(),
         scheduledFor: z.string().optional(),
         changeNote: z.string().max(1000).optional(),
+        // Оптимистичная блокировка: UI присылает updatedAt прочитанной версии.
+        // Расхождение = кто-то сохранился раньше -> CONFLICT вместо тихой потери правок.
+        expectedUpdatedAt: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, changeNote, scheduledFor, ...rest } = input;
-      const data: Record<string, unknown> = { ...rest };
-      if (rest.slug) data.slug = slugify(rest.slug);
-      if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
-      const updated = await ctx.prisma.entry.update({ where: { id }, data: data as never, include: { blocks: true } });
-      const count = await ctx.prisma.revision.count({ where: { entryId: id } });
-      await ctx.prisma.revision.create({
-        data: {
-          entryId: id,
-          version: count + 1,
-          snapshotJson: JSON.stringify({ entry: updated, blocks: (updated as { blocks: unknown }).blocks }),
-          changeNote: changeNote ?? "Обновление",
-          authorId: ctx.user.id,
-        },
+      const { id, changeNote, scheduledFor, expectedUpdatedAt, ...rest } = input;
+      return ctx.prisma.$transaction(async (tx) => {
+        if (expectedUpdatedAt) {
+          const current = await tx.entry.findUnique({ where: { id }, select: { updatedAt: true } });
+          if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+          if (new Date(current.updatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Запись изменена другим пользователем. Обновите страницу и повторите.",
+            });
+          }
+        }
+        const data: Record<string, unknown> = { ...rest };
+        if (rest.slug) data.slug = slugify(rest.slug);
+        if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
+        const updated = await tx.entry.update({ where: { id }, data: data as never, include: { blocks: true } });
+        const count = await tx.revision.count({ where: { entryId: id } });
+        await tx.revision.create({
+          data: {
+            entryId: id,
+            version: count + 1,
+            snapshotJson: JSON.stringify({ entry: updated, blocks: (updated as { blocks: unknown }).blocks }),
+            changeNote: changeNote ?? "Обновление",
+            authorId: ctx.user.id,
+          },
+        });
+        return updated;
+      }).then(async (updated) => {
+        // Сеть — только после коммита: не держим транзакцию на HTTP.
+        if ((updated as { status: string }).status === "PUBLISHED") {
+          await fireWebhooks(ctx.prisma as never, "entry.published", updated);
+        }
+        return updated;
       });
-      if ((updated as { status: string }).status === "PUBLISHED") {
-        await fireWebhooks(ctx.prisma as never, "entry.published", updated);
-      }
-      return updated;
     }),
 
   // Перетаскивание карточки на Kanban-доске редполитики (dnd-kit)
@@ -156,17 +182,21 @@ export const entryRouter = createTRPCRouter({
       const stage = await ctx.prisma.workflowStage.findUnique({ where: { id: input.stageId } });
       if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
       const isPublishing = stage.targetState === "PUBLISHED";
-      const entry = await ctx.prisma.entry.update({
-        where: { id: input.entryId },
-        data: {
-          stageId: stage.id,
-          status: stage.targetState,
-          publishedAt: isPublishing ? new Date() : undefined,
-        },
+      const entry = await ctx.prisma.$transaction(async (tx) => {
+        const e = await tx.entry.update({
+          where: { id: input.entryId },
+          data: {
+            stageId: stage.id,
+            status: stage.targetState,
+            publishedAt: isPublishing ? new Date() : undefined,
+          },
+        });
+        await tx.activityLog.create({
+          data: { entryId: e.id, userId: ctx.user.id, action: "STAGE_CHANGED", comment: `Этап → ${stage.name}` },
+        });
+        return e;
       });
-      await ctx.prisma.activityLog.create({
-        data: { entryId: entry.id, userId: ctx.user.id, action: "STAGE_CHANGED", comment: `Этап → ${stage.name}` },
-      });
+      // Сеть — только после коммита: не держим транзакцию на HTTP.
       if (isPublishing) await fireWebhooks(ctx.prisma as never, "entry.published", entry);
       return entry;
     }),

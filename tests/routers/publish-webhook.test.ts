@@ -40,6 +40,11 @@ describe("entry.publish -> webhooks, без БД", () => {
     ];
     expect(calledUrl).toBe("https://cms.test/hook");
     expect(calledInit.headers["X-Verso-Event"]).toBe("entry.published");
+    // HMAC-подпись вместо голого секрета: проверяема независимо.
+    expect(calledInit.headers["X-Verso-Sign"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+    const { createHmac } = await import("node:crypto");
+    const expected = `sha256=${createHmac("sha256", "s3").update(JSON.stringify({ event: "entry.published", data: out })).digest("hex")}`;
+    expect(calledInit.headers["X-Verso-Sign"]).toBe(expected);
   });
 
   it("VIEWER: FORBIDDEN, вебхук не стреляет", async () => {

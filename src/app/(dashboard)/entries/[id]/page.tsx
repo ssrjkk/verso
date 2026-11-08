@@ -289,6 +289,13 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       scheduledFor: scheduledFor || undefined,
       status: status as "DRAFT" | "IN_REVIEW" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED",
       changeNote: saveNote || "Обновление SEO и метаданных",
+      // Оптимистичная блокировка: сервер отклонит сохранение чужой версии кодом CONFLICT.
+        // Оптимистичная блокировка: сервер отклонит сохранение чужой версии кодом CONFLICT.
+        expectedUpdatedAt: entry?.updatedAt
+          ? entry.updatedAt instanceof Date
+            ? entry.updatedAt.toISOString()
+            : String(entry.updatedAt)
+          : undefined,
     });
   }
 

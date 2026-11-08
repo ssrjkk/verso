@@ -7,6 +7,14 @@ export function toCsv(rows: Record<string, unknown>[], columns: string[]): strin
   return [columns.join(","), ...rows.map((r) => columns.map((c) => esc(r[c])).join(","))].join("\r\n");
 }
 
+// Защита от CSV-инъекций (=cmd|' /C calc'!A0): LibreOffice/Excel выполняют
+// формулы при открытии. Нейтрализуем ведущие =,+,-,@,tab,CR префиксом "'".
+// Применяется ТОЛЬКО на границе экспорта, toCsv остаётся чистым RFC 4180.
+export function sanitizeCsvCell(v: unknown): string {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+}
+
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];

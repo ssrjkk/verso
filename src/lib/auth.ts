@@ -2,6 +2,20 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 
+// Fail fast: запуск в проде с дефолтным/демо-секретом = скомпрометированные сессии.
+// NEXT_PHASE исключает фазу сборки (там секреты не нужны, только статический анализ роутов).
+// AUTH_RATELIMIT=off маркирует тестовый харнес (e2e на throwaway-БД) —
+// НИКОГДА не выставлять в проде (см. .env.example).
+const isTestHarness = process.env.AUTH_RATELIMIT === "off" || process.env.NODE_ENV === "test";
+if (
+  process.env.NODE_ENV === "production" &&
+  !process.env.NEXT_PHASE?.includes("build") &&
+  !isTestHarness &&
+  (!process.env.BETTER_AUTH_SECRET || /change-me|test|demo|secret123/i.test(process.env.BETTER_AUTH_SECRET))
+) {
+  throw new Error("BETTER_AUTH_SECRET must be set to a strong random value in production");
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "sqlite" }),
   emailAndPassword: { enabled: true },

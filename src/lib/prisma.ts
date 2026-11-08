@@ -5,7 +5,8 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
   const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-  const adapter = new PrismaBetterSqlite3({ url });
+  // timeout = busy_timeout для конкурентных записей (SQLite блокирует файл на запись).
+  const adapter = new PrismaBetterSqlite3({ url, timeout: 5000 });
   return new PrismaClient({ adapter });
 }
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
-import { toCsv, parseCsv } from "@/lib/csv";
+import { toCsv, parseCsv, sanitizeCsvCell } from "@/lib/csv";
 
 export const collectionRouter = createTRPCRouter({
   list: protectedProcedure
@@ -68,10 +68,11 @@ export const collectionRouter = createTRPCRouter({
             : {}),
         },
         orderBy: { updatedAt: "desc" },
+        take: 10_000,
       });
       return toCsv(
         entries.map((e) => ({
-          title: e.title,
+          title: sanitizeCsvCell(e.title),
           slug: e.slug,
           status: e.status,
           updatedAt: e.updatedAt instanceof Date ? e.updatedAt.toISOString() : String(e.updatedAt),
