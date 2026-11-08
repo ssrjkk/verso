@@ -13,7 +13,7 @@ model User {
   email         String          @unique
   emailVerified Boolean         @default(false)
   image         String?
-  role          String          @default("ADMIN") // ADMIN | MANAGER | VIEWER
+  role          String          @default("VIEWER") // ADMIN | MANAGER | VIEWER
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   sessions      Session[]

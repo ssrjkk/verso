@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
+import { applySignupRolePolicy } from "./first-admin";
 
 // Fail fast: запуск в проде с дефолтным/демо-секретом = скомпрометированные сессии.
 // NEXT_PHASE исключает фазу сборки (там секреты не нужны, только статический анализ роутов).
@@ -30,7 +31,24 @@ export const auth = betterAuth({
   ].filter((v): v is string => Boolean(v)),
   user: {
     additionalFields: {
-      role: { type: "string", defaultValue: "ADMIN", required: false },
+      // Роль НЕ принимается от клиента (input: false) и по умолчанию VIEWER.
+      // Повышение — только через user.setRole администратором.
+      role: { type: "string", defaultValue: "VIEWER", required: false, input: false },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Bootstrap пустой инсталляции: первый зарегистрированный
+        // пользователь становится ADMIN. Дальнейшие signup — VIEWER.
+        after: async (user) => {
+          try {
+            await applySignupRolePolicy(prisma, user.id);
+          } catch (e) {
+            console.error("[auth] applySignupRolePolicy failed:", e);
+          }
+        },
+      },
     },
   },
 });

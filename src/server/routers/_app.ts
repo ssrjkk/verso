@@ -4,6 +4,7 @@ import { entryRouter } from "./entry";
 import { blockRouter, workflowRouter, mediaRouter, seoRouter, apiKeyRouter, webhookRouter } from "./content";
 import { z } from "zod";
 import { protectedProcedure, editorProcedure } from "../trpc";
+import { userRouter } from "./user";
 
 const taskRouter = createTRPCRouter({
   list: protectedProcedure.query(({ ctx }) =>
@@ -26,6 +27,7 @@ const taskRouter = createTRPCRouter({
 });
 
 export const appRouter = createTRPCRouter({
+  user: userRouter,
   collection: collectionRouter,
   entry: entryRouter,
   block: blockRouter,

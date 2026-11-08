@@ -1,21 +1,67 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
 
-async function trpc(page: Page, path: string, json?: unknown) {
-  const r = await page.request.post(`/api/trpc/${path}?batch=1`, {
-    headers: { "content-type": "application/json" },
-    data: { "0": { json } },
-  });
+async function trpc(page: Page, path: string, json?: unknown, isQuery = false) {
+  const payload = json === undefined
+    ? { "0": { json: null, meta: { values: ["undefined"], v: 1 } } }
+    : { "0": { json } };
+  const r = isQuery
+    ? await page.request.get(`/api/trpc/${path}?batch=1&input=${encodeURIComponent(JSON.stringify(payload))}`)
+    : await page.request.post(`/api/trpc/${path}?batch=1`, {
+        headers: { "content-type": "application/json" },
+        data: payload,
+      });
   const j = (await r.json()) as Array<{ result?: { data: { json: unknown } }; error?: { json: { data: { code: string } } } }>;
   return { status: r.status(), op: j[0] };
 }
 
-// SECURITY: публичная регистрация сейчас выдаёт ADMIN (additionalFields default).
-// Тест фиксирует фактическое поведение — при смене дефолта на VIEWER он упадёт,
-// и это правильно: решение должно быть осознанным, а не тихим.
-test("signup assigns a role; new user can operate", async ({ browser }) => {
+async function trpcAs(request: APIRequestContext, path: string, json?: unknown, isQuery = false) {
+  const payload = json === undefined
+    ? { "0": { json: null, meta: { values: ["undefined"], v: 1 } } }
+    : { "0": { json } };
+  const r = isQuery
+    ? await request.get(`/api/trpc/${path}?batch=1&input=${encodeURIComponent(JSON.stringify(payload))}`)
+    : await request.post(`/api/trpc/${path}?batch=1`, {
+        headers: { "content-type": "application/json" },
+        data: payload,
+      });
+  const j = (await r.json()) as Array<{ result?: { data: { json: unknown } }; error?: { json: { data: { code: string } } } }>;
+  return { status: r.status(), op: j[0] };
+}
+
+// RED TEAM: даже если подсунуть role:"ADMIN" в тело signup — итог VIEWER.
+test("signup ignores injected role, stays VIEWER", async ({ browser }) => {
+  const ts = Date.now();
+  const email = `e2e-red-${ts}@example.dev`;
   const ctx = await browser.newContext();
-  const page = await ctx.newPage();
   try {
+    const res = await ctx.request.post("/api/auth/sign-up/email", {
+      headers: { "content-type": "application/json" },
+      data: { name: `E2E Red ${ts}`, email, password: "Test12345!@#", role: "ADMIN" },
+    });
+    expect(res.ok(), `signup status ${res.status()}`).toBeTruthy();
+    const body = (await res.json()) as { user?: { role?: string } };
+    expect(body.user?.role, "роль в ответе sign-up").toBe("VIEWER");
+
+    const admin = await browser.newContext({ storageState: "tests/e2e/.auth/admin.json" });
+    try {
+      const { op } = await trpcAs(admin.request, "user.list", undefined, true);
+      const users = (op.result?.data?.json ?? []) as Array<{ email: string; role: string }>;
+      const me = users.find((u) => u.email === email);
+      expect(me, "new user present in admin user.list").toBeTruthy();
+      expect(me!.role).toBe("VIEWER");
+    } finally {
+      await admin.close();
+    }
+  } finally {
+    await ctx.close();
+  }
+});
+
+// Новый пользователь по умолчанию VIEWER: читать можно, писать — 403.
+test("fresh signup is VIEWER: read ok, write forbidden", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  try {
+    const page = await ctx.newPage();
     const ts = Date.now();
     const email = `e2e-new-${ts}@example.dev`;
     await page.goto("/sign-up");
@@ -25,10 +71,10 @@ test("signup assigns a role; new user can operate", async ({ browser }) => {
     await page.locator("form button").first().click();
     await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
-    const { op } = await trpc(page, "collection.create", { name: `E2E owned ${ts}` });
-    // eslint-disable-next-line no-console
-    console.log(`SIGNUP-ROLE-PROBE: collection.create as new user -> ${op.error ? op.error.json.data.code : "OK (ADMIN)"}`);
-    expect(op.error?.json.data.code).not.toBe("UNAUTHORIZED");
+    const { op: read } = await trpc(page, "collection.list", undefined, true);
+    expect(read.error, "viewer can read").toBeUndefined();
+    const { op: write } = await trpc(page, "entry.create", { collectionId: "xxx", title: "Nope" });
+    expect(write.error?.json.data.code).toBe("FORBIDDEN");
   } finally {
     await ctx.close();
   }
@@ -36,8 +82,8 @@ test("signup assigns a role; new user can operate", async ({ browser }) => {
 
 test("duplicate signup shows error, no redirect", async ({ browser }) => {
   const ctx = await browser.newContext();
-  const page = await ctx.newPage();
   try {
+    const page = await ctx.newPage();
     await page.goto("/sign-up");
     await page.locator("#signup-name").fill("Dup");
     await page.locator("#signup-email").fill("editor@verso.dev");

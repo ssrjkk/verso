@@ -1,5 +1,6 @@
 "use client";
 import { trpc } from "@/trpc/client";
+import { useSession } from "@/lib/auth-client";
 import { useState } from "react";
 
 export default function SettingsPage() {
@@ -22,6 +23,14 @@ export default function SettingsPage() {
 
   const [whForm, setWhForm] = useState({ name: "", url: "", secret: "", events: "entry.published,entry.updated" });
   const [testResult, setTestResult] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
+  const { data: users } = trpc.user.list.useQuery(undefined, { enabled: isAdmin });
+  const setRole = trpc.user.setRole.useMutation({
+    onSuccess: () => utils.user.list.invalidate(),
+    onError: (e) => setUserError(e.message),
+  });
+  const [userError, setUserError] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-8">
@@ -112,6 +121,40 @@ export default function SettingsPage() {
           </div>
         ))}
       </section>
+
+      {isAdmin && (
+        <section className="flex flex-col gap-4" aria-label="Пользователи">
+          <h2 className="font-display text-xl font-extrabold">Пользователи</h2>
+          {userError && (
+            <p role="alert" className="rounded-xl border border-red-500/50 p-3 text-sm text-red-500">
+              {userError}
+            </p>
+          )}
+          {(users ?? []).map((u) => (
+            <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+              <span className="break-all">
+                {u.name} · {u.email}
+              </span>
+              <label className="flex items-center gap-2 text-xs">
+                Роль
+                <select
+                  value={u.role}
+                  aria-label={`Роль пользователя ${u.email}`}
+                  onChange={(e) => {
+                    setUserError(null);
+                    if (e.target.value !== u.role) setRole.mutate({ userId: u.id, role: e.target.value as "ADMIN" | "MANAGER" | "VIEWER" });
+                  }}
+                  className="rounded-lg border bg-transparent px-2 py-1 text-sm"
+                >
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="MANAGER">MANAGER</option>
+                  <option value="VIEWER">VIEWER</option>
+                </select>
+              </label>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

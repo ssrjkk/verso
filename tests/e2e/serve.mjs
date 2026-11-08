@@ -51,6 +51,14 @@ process.env.BETTER_AUTH_SECRET ??= "e2e-test-secret-32-chars-minimum!!";
 process.env.BETTER_AUTH_URL ??= "http://localhost:3100";
 process.env.NEXT_PUBLIC_APP_URL ??= "http://localhost:3100";
 
+// Детерминированный baseline: e2e.db пересоздаётся при каждом старте сервера.
+// Иначе пользователи/роли от прошлых прогонов накапливаются и ломают
+// инварианты (например, «последний ADMIN»).
+console.log("[webServer] resetting e2e.db");
+for (const f of ["e2e.db", "e2e.db-journal", "e2e.db-wal", "e2e.db-shm"]) {
+  fs.rmSync(path.join(root, "prisma", f), { force: true });
+}
+
 run("npx", ["prisma", "db", "push"]);
 run("npx", ["tsx", "prisma/seed.ts"]);
 
