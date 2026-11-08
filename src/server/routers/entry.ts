@@ -167,7 +167,7 @@ export const entryRouter = createTRPCRouter({
         fieldsJson: z.string().max(200_000).optional(),
         seoTitle: z.string().max(200).optional(),
         seoDescription: z.string().max(500).optional(),
-        scheduledFor: z.string().optional(),
+        scheduledFor: z.string().refine((v) => !Number.isNaN(Date.parse(v)), { message: "Некорректная дата" }).optional(),
         changeNote: z.string().max(1000).optional(),
         // Оптимистичная блокировка: UI присылает updatedAt прочитанной версии.
         // Расхождение = кто-то сохранился раньше -> CONFLICT вместо тихой потери правок.

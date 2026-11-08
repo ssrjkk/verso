@@ -41,6 +41,21 @@ describe("input validation contracts", () => {
     await expect(caller("MANAGER").entry.update({ id: "e1", changeNote: "x".repeat(1001) })).rejects.toThrow();
   });
 
+  it("entry.update: кривой scheduledFor -> 400, валидный ISO -> дальше (не валидация)", async () => {
+    await expect(
+      caller("MANAGER").entry.update({ id: "e1", scheduledFor: "не дата" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const findUnique = vi.fn(async () => ({ updatedAt: new Date("2026-01-01T00:00:00.000Z") }));
+    const tx = {
+      entry: { findUnique, update: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: "e1", status: "DRAFT", ...a.data })) },
+      revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
+    };
+    const c = caller("MANAGER", { $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)) });
+    const out = await c.entry.update({ id: "e1", scheduledFor: new Date("2026-05-01T10:00:00.000Z").toISOString() }) as unknown as Record<string, unknown>;
+    expect(out).toMatchObject({ id: "e1" });
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it("collection.create: пустое name -> ошибка", async () => {
     await expect(caller().collection.create({ name: "" })).rejects.toThrow();
   });
@@ -111,5 +126,20 @@ describe("input validation contracts", () => {
   it("collection.create: name >200 и schemaJson >200k -> ошибка", async () => {
     await expect(caller().collection.create({ name: "x".repeat(201) })).rejects.toThrow();
     await expect(caller().collection.create({ name: "N", schemaJson: "x".repeat(200_001) })).rejects.toThrow();
+  });
+
+  it("importCsv: дубли slug внутри файла -> imported 1, skipped 1", async () => {
+    const prisma = {
+      entry: {
+        findMany: vi.fn(async () => []),
+        createMany: vi.fn(async () => ({ count: 1 })),
+      },
+    };
+    const out = (await caller("MANAGER", prisma).collection.importCsv({
+      collectionId: "c1",
+      csv: "title,slug\nSame,same-slug\nSame,same-slug",
+    })) as unknown as { imported: number; skipped: number };
+    expect(out.imported).toBe(1);
+    expect(out.skipped).toBe(1);
   });
 });
