@@ -193,7 +193,7 @@ export const entryRouter = createTRPCRouter({
           if (new Date(current.updatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()) {
             throw new TRPCError({
               code: "CONFLICT",
-              message: "Entry was modified by another user. Reload and retry.",
+              message: "Запись изменена другим пользователем. Обновите страницу и повторите.",
             });
           }
         }
