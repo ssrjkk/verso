@@ -31,6 +31,9 @@ export const entryRouter = createTRPCRouter({
         status: Status.optional(),
         tagId: z.string().optional(),
         search: z.string().optional(),
+        // Пагинационный колпак против JSON-бомб: дефолт 200, жёсткий потолок 1000.
+        // Календарю нужны все записи — он передаёт limit явно.
+        limit: z.number().int().min(1).max(1000).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -50,6 +53,7 @@ export const entryRouter = createTRPCRouter({
           author: { select: { id: true, name: true, email: true } },
         },
         orderBy: { updatedAt: "desc" },
+        take: input.limit ?? 200,
       });
     }),
 

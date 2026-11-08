@@ -111,7 +111,27 @@ export const collectionRouter = createTRPCRouter({
         seen.add(slug);
         data.push({ collectionId: input.collectionId, title, slug, authorId });
       }
-      if (data.length) await ctx.prisma.entry.createMany({ data });
-      return { imported: data.length, skipped };
+      if (data.length) {
+        try {
+          const r = await ctx.prisma.entry.createMany({ data });
+          return { imported: r.count, skipped, conflicts: 0 };
+        } catch (e) {
+          // Гонка параллельных импортов: P2002 на дубле slug.
+          // Добиваем построчно с точным учётом, чужое не глотаем.
+          if ((e as { code?: string }).code !== "P2002") throw e;
+          let imported = 0;
+          let skipped2 = skipped;
+          for (const d of data) {
+            try {
+              await ctx.prisma.entry.create({ data: d });
+              imported++;
+            } catch {
+              skipped2++;
+            }
+          }
+          return { imported, skipped: skipped2, conflicts: data.length - imported };
+        }
+      }
+      return { imported: 0, skipped, conflicts: 0 };
     }),
 });

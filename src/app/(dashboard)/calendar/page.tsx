@@ -26,7 +26,7 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(now.getMonth());
   const [selected, setSelected] = useState<string>(dayKey(now));
 
-  const { data: entries, isPending: entriesPending } = trpc.entry.list.useQuery({});
+  const { data: entries, isPending: entriesPending } = trpc.entry.list.useQuery({ limit: 1000 });
   const { data: tasks, isPending: tasksPending } = trpc.task.list.useQuery();
   const isLoading = entriesPending || tasksPending;
   const createTask = trpc.task.create.useMutation({

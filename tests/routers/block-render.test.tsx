@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import BlockRender from "@/components/blocks/BlockRender";
+import BlockRender, { asSafeHref } from "@/components/blocks/BlockRender";
 import { DEFAULT_BLOCKS, type BlockType } from "@/components/blocks/block-defaults";
 
 const EXPECTED: Record<BlockType, string[]> = {
@@ -37,5 +37,36 @@ describe("BlockRender: все 8 типов рисуют контент", () => {
   it("неизвестный тип не падает", () => {
     const html = renderToStaticMarkup(<BlockRender type="NOPE" propsJson="{}" />);
     expect(html).toContain("NOPE");
+  });
+});
+
+describe("asSafeHref: режем javascript:/data:/vbscript:", () => {
+  it.each([
+    ["javascript:alert(1)", "#"],
+    ["JaVaScRiPt:alert(1)", "#"],
+    ["data:text/html,<h1>x</h1>", "#"],
+    ["vbscript:msgbox(1)", "#"],
+    ["", "#"],
+  ])("блокирует %s", (input, expected) => {
+    expect(asSafeHref(input)).toBe(expected);
+  });
+
+  it.each([
+    "https://example.com/x",
+    "http://example.com/",
+    "/collections/posts",
+    "#section",
+    "mailto:a@b.c",
+    "tel:+70000000000",
+  ])("пропускает %s", (input) => {
+    expect(asSafeHref(input)).toBe(input);
+  });
+
+  it("CTA с javascript-ссылкой рендерит #", () => {
+    const html = renderToStaticMarkup(
+      <BlockRender type="CTA" propsJson={JSON.stringify({ title: "T", text: "x", buttonLabel: "Go", buttonHref: "javascript:alert(1)" })} />,
+    );
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain('href="#"');
   });
 });

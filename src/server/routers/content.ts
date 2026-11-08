@@ -45,7 +45,11 @@ export const workflowRouter = createTRPCRouter({
 
 export const mediaRouter = createTRPCRouter({
   list: protectedProcedure
-    .input(z.object({ folder: z.string().optional(), search: z.string().optional() }))
+    .input(z.object({
+      folder: z.string().optional(),
+      search: z.string().optional(),
+      limit: z.number().int().min(1).max(1000).optional(),
+    }))
     .query(({ ctx, input }) =>
       ctx.prisma.mediaAsset.findMany({
         where: {
@@ -53,6 +57,7 @@ export const mediaRouter = createTRPCRouter({
           ...(input.search ? { filename: { contains: input.search } } : {}),
         },
         orderBy: { createdAt: "desc" },
+        take: input.limit ?? 200,
       }),
     ),
   create: editorProcedure

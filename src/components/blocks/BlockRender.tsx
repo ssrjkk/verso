@@ -10,6 +10,17 @@ function asString(v: unknown, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
 }
 
+// Безопасный href: режем javascript:/data:/vbscript: (stored XSS через CTA-ссылки).
+// Разрешены http(s), mailto, tel, относительные пути, якоря.
+export function asSafeHref(v: unknown, fallback = "#"): string {
+  const s = asString(v, "");
+  if (!s) return fallback;
+  const t = s.trim();
+  if (/^(https?:\/\/|\/|#)/i.test(t)) return t;
+  if (/^(mailto|tel):/i.test(t)) return t;
+  return fallback;
+}
+
 function asArray(v: unknown): AnyRecord[] {
   if (!Array.isArray(v)) return [];
   return v.filter((x): x is AnyRecord => !!x && typeof x === "object");
@@ -47,7 +58,7 @@ function Hero(p: AnyRecord) {
       {asString(p.subtitle) ? <p className="mx-auto mt-3 max-w-xl text-sm opacity-70">{asString(p.subtitle)}</p> : null}
       {asString(p.ctaLabel) ? (
         <a
-          href={asString(p.ctaHref, "#")}
+          href={asSafeHref(p.ctaHref, "#")}
           className="mt-5 inline-block rounded-xl bg-[#f97316] px-6 py-2.5 text-sm font-semibold text-white"
         >
           {asString(p.ctaLabel)}
@@ -178,7 +189,7 @@ function Cta(p: AnyRecord) {
       {asString(p.text) ? <p className="mx-auto mt-2 max-w-lg text-sm text-white/85">{asString(p.text)}</p> : null}
       {asString(p.buttonLabel) ? (
         <a
-          href={asString(p.buttonHref, "#")}
+          href={asSafeHref(p.buttonHref, "#")}
           className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#f97316]"
         >
           {asString(p.buttonLabel)}

@@ -4,9 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-
-const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED = [/^image\//, /^video\//, /^application\/pdf$/];
+import { validateUploadFile } from "@/lib/upload-validation";
 
 function sanitizeFolder(folder: string | null): string {
   const f = (folder ?? "root").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "") || "root";
@@ -32,14 +30,11 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Поле file обязательно" }, { status: 400 });
   }
-  if (!ALLOWED.some((re) => re.test(file.type))) {
-    return NextResponse.json({ error: `Недопустимый mime-тип: ${file.type || "unknown"}` }, { status: 400 });
+  const verdict = validateUploadFile(file);
+  if (!verdict.ok) {
+    return NextResponse.json({ error: verdict.error }, { status: 400 });
   }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Файл больше 10MB" }, { status: 400 });
-  }
-  const ext = path.extname(file.name).toLowerCase().slice(0, 10) || "";
-  const filename = `${randomUUID()}${ext}`;
+  const filename = `${randomUUID()}.${verdict.ext}`;
   const dir = path.join(process.cwd(), "public", "uploads", folder);
   await mkdir(dir, { recursive: true });
   const buf = Buffer.from(await file.arrayBuffer());

@@ -50,4 +50,22 @@ describe("input validation contracts", () => {
     await caller("MANAGER", { redirect: { upsert } }).seo.upsertRedirect({ fromPath: "/old", toPath: "/new" });
     expect(upsert).toHaveBeenCalledTimes(1);
   });
+
+  it("entry.list: дефолт 200, >1000 отклоняется валидацией", async () => {
+    const findMany = vi.fn(async () => []);
+    const c = caller("MANAGER", { entry: { findMany } });
+    await c.entry.list({});
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 200 }));
+    await c.entry.list({ limit: 50 });
+    expect(findMany).toHaveBeenLastCalledWith(expect.objectContaining({ take: 50 }));
+    await expect(c.entry.list({ limit: 5000 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("media.list: дефолт 200, >1000 отклоняется", async () => {
+    const findMany = vi.fn(async () => []);
+    const c = caller("MANAGER", { mediaAsset: { findMany } });
+    await c.media.list({});
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 200 }));
+    await expect(c.media.list({ limit: 9999 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
 });
