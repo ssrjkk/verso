@@ -33,8 +33,9 @@ test("seo panel persists", async ({ page }) => {
   await page.goto(`/entries/${entry.id}`);
   await page.getByLabel("SEO-заголовок").fill(seoTitle);
   await page.getByLabel("SEO-описание").fill(seoDesc);
+  const saveP = page.waitForResponse(/entry\.update/, { timeout: 15000 });
   await page.getByRole("button", { name: "Сохранить SEO" }).click();
-  await page.waitForResponse(/entry\.update/, { timeout: 15000 });
+  await saveP;
 
   await page.reload();
   await expect(page.getByLabel("SEO-заголовок")).toHaveValue(seoTitle, { timeout: 15000 });

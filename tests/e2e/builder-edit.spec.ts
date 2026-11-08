@@ -33,8 +33,9 @@ test("builder edit + visibility", async ({ page }) => {
   await page.getByRole("button", { name: /Редактировать/ }).first().click();
   const newTitle = `E2E edited ${ts}`;
   await page.getByLabel("Заголовок", { exact: true }).first().fill(newTitle);
+  const saveP = page.waitForResponse(/block\.upsertMany/, { timeout: 15000 });
   await page.getByRole("button", { name: /Сохранить блоки/ }).click();
-  await page.waitForResponse(/block\.upsertMany/, { timeout: 15000 });
+  await saveP;
   await expect(page.locator("section.print-clean").getByText(newTitle)).toBeVisible({ timeout: 15000 });
 
   await page.reload();
@@ -47,7 +48,8 @@ test("builder edit + visibility", async ({ page }) => {
   // Скрываем блок — превью пустеет, строка остаётся
   await page.getByRole("button", { name: /Редактировать/ }).first().click();
   await page.getByTitle(/Скрыть|Показать/).first().click();
+  const saveP2 = page.waitForResponse(/block\.upsertMany/, { timeout: 15000 });
   await page.getByRole("button", { name: /Сохранить блоки/ }).click();
-  await page.waitForResponse(/block\.upsertMany/, { timeout: 15000 });
+  await saveP2;
   await expect(page.getByText("Нет видимых блоков")).toBeVisible({ timeout: 15000 });
 });
