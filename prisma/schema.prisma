@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── BETTER AUTH & RBAC (ADMIN / MANAGER / VIEWER) ──────────────────────────
+model User {
+  id            String          @id @default(cuid())
+  name          String
+  email         String          @unique
+  emailVerified Boolean         @default(false)
+  image         String?
+  role          String          @default("ADMIN") // ADMIN | MANAGER | VIEWER
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  entries       Entry[]         @relation("EntryAuthor")
+  revisions     Revision[]
+  tasks         EditorialTask[]
+  activities    ActivityLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+}
+
+// ─── КОНТЕНТ-ЯДРО И КОЛЛЕКЦИИ ───────────────────────────────────────────────
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String   @default("FileText")
+  schemaJson  String   @default("[]")
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  entries     Entry[]
+}
+
+model WorkflowStage {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#7c5cff")
+  order       Int      @default(0)
+  targetState String   @default("DRAFT") // DRAFT | IN_REVIEW | PUBLISHED | ARCHIVED
+  createdAt   DateTime @default(now())
+  entries     Entry[]
+}
+
+model Entry {
+  id              String         @id @default(cuid())
+  collectionId    String
+  collection      Collection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  title           String
+  slug            String
+  excerpt         String?
+  status          String         @default("DRAFT") // DRAFT | IN_REVIEW | SCHEDULED | PUBLISHED | ARCHIVED
+  fieldsJson      String         @default("{}")
+
+  // SEO & OpenGraph
+  seoTitle        String?
+  seoDescription  String?
+  ogImageUrl      String?
+  canonicalUrl    String?
+  noIndex         Boolean        @default(false)
+  // Связь с Kanban-доской и автором
+  stageId         String?
+  stage           WorkflowStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  authorId        String
+  author          User           @relation("EntryAuthor", fields: [authorId], references: [id])
+  // Интеграция с проектами Corvid CRM (1:1 по внешнему ID)
+  crmProjectId    String?        @unique
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  blocks          PageBlock[]
+  revisions       Revision[]
+  tags            EntryTag[]
+  tasks           EditorialTask[]
+  activities      ActivityLog[]
+  @@unique([collectionId, slug])
+  @@index([status, publishedAt])
+}
+
+// ─── БЛОЧНЫЙ КОНСТРУКТОР СТРАНИЦ (DND-KIT) ──────────────────────────────────
+model PageBlock {
+  id        String   @id @default(cuid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  type      String   // HERO | FEATURES | PRICING | FAQ | RICH_TEXT | GALLERY | CODE | CTA
+  order     Int      @default(0)
+  isVisible Boolean  @default(true)
+  propsJson String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([entryId, order])
+}
+
+// ─── ВЕРСИОНИРОВАНИЕ (РЕВИЗИИ) И ТЕГИ ───────────────────────────────────────
+model Revision {
+  id           String   @id @default(cuid())
+  entryId      String
+  entry        Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  version      Int
+  snapshotJson String
+  changeNote   String?
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id])
+  createdAt    DateTime @default(now())
+  @@unique([entryId, version])
+}
+
+model Tag {
+  id      String     @id @default(cuid())
+  name    String     @unique
+  color   String     @default("#7c5cff")
+  entries EntryTag[]
+}
+
+model EntryTag {
+  entryId String
+  tagId   String
+  entry   Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([entryId, tagId])
+}
+
+// ─── МЕДИАТЕКА, ЗАДАЧИ РЕДАКЦИИ И ИСТОРИЯ АКТИВНОСТЕЙ ───────────────────────
+model MediaAsset {
+  id        String   @id @default(cuid())
+  filename  String
+  url       String
+  mimeType  String
+  sizeBytes Int
+  width     Int?
+  height    Int?
+  altText   String   @default("")
+  folder    String   @default("root")
+  createdAt DateTime @default(now())
+}
+
+model EditorialTask {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("TODO") // TODO | IN_PROGRESS | DONE
+  priority    String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  dueDate     DateTime?
+  entryId     String?
+  entry       Entry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  assignee    User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String // CREATED | UPDATED | PUBLISHED | STAGE_CHANGED | RESTORED_REVISION
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+// ─── SEO-РЕДИРЕКТЫ, HEADLESS API И ВЕБХУКИ ──────────────────────────────────
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique
+  toPath     String
+  statusCode Int      @default(301) // 301 | 302
+  isActive   Boolean  @default(true)
+  hits       Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String
+  keyHash    String    @unique
+  scope      String    @default("READ") // READ | READ_WRITE
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  secret    String
+  events    String   @default("entry.published,entry.updated")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
