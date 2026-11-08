@@ -188,7 +188,7 @@ export const entryRouter = createTRPCRouter({
           where: { id },
           select: { updatedAt: true, collectionId: true, slug: true },
         });
-        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Entry not found" });
+        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
         if (expectedUpdatedAt) {
           if (new Date(current.updatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()) {
             throw new TRPCError({
@@ -199,7 +199,7 @@ export const entryRouter = createTRPCRouter({
         }
         const data: Record<string, unknown> = { ...rest };
         if (rest.slug) {
-          // Same-entry slug stays untouched; чужой занятый slug получает суффикс.
+          // Свой slug не трогаем; чужой занятый получает суффикс -2, -3, ...
           const base = slugify(rest.slug) || current.slug;
           let candidate = base;
           for (let i = 0; i < 100; i++) {
