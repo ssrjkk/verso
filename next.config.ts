@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   transpilePackages: ["superjson"],
   // Защита загруженных файлов: никакого сниффинга типов + песочница
   // (второй рубеж после строгой валидации mime/расширения в upload-validation.ts).

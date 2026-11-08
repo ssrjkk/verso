@@ -2,7 +2,27 @@
   "name": "verso",
   "version": "0.1.0",
   "private": true,
-  "description": "Verso — блочно-коллекционная Headless CMS + Page Builder в дизайн-системе Verso",
+  "license": "MIT",
+  "description": "Verso — editorial headless CMS and page builder (Next.js, tRPC, Prisma, Better Auth)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ssrjkk/verso.git"
+  },
+  "homepage": "https://github.com/ssrjkk/verso#readme",
+  "bugs": {
+    "url": "https://github.com/ssrjkk/verso/issues"
+  },
+  "keywords": [
+    "nextjs",
+    "headless-cms",
+    "cms",
+    "trpc",
+    "prisma",
+    "better-auth",
+    "page-builder",
+    "kanban",
+    "typescript"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
@@ -32,7 +52,6 @@
     "@trpc/server": "^11.25.0",
     "better-auth": "^1.7.18",
     "better-sqlite3": "^12.11.1",
-    "client-only": "^0.0.1",
     "clsx": "^2.1.1",
     "dotenv": "^18.0.9",
     "next": "16.4.5",
@@ -53,7 +72,6 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
     "prisma": "^7.10.1",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.19.2",
