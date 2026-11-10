@@ -13,8 +13,7 @@ export function slugify(input: string): string {
       return map[ch] ?? "";
     })
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
     .slice(0, 120);
 }
 

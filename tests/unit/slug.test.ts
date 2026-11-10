@@ -42,4 +42,16 @@ describe("slug matrix", () => {
   it("trims to 120 chars", () => {
     expect(slugify("a".repeat(200)).length).toBeLessThanOrEqual(120);
   });
+
+  // Страж против возврата к квантификаторам по дефисам (`-+`, `-{2,}`):
+  // CodeQL считает их polynomial-redos на пользовательском вводе.
+  it("stays linear on dash-heavy input", () => {
+    for (const input of ["-".repeat(20000), "a-".repeat(10000), "-".repeat(20000) + "a"]) {
+      const started = performance.now();
+      slugify(`${input}!!!!`);
+      expect(performance.now() - started).toBeLessThan(200);
+    }
+    expect(slugify("-".repeat(20000))).toBe("");
+    expect(slugify("a".repeat(50) + "-".repeat(200))).toBe("a".repeat(50));
+  });
 });

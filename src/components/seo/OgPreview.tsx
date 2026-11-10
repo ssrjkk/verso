@@ -14,12 +14,21 @@ export default function OgPreview({ title, description, image, url }: Props) {
   } catch {
     host = url;
   }
+  // og:image приходит из формы, поэтому в <img src> идёт только http(s)-адрес:
+  // javascript:/data:/file: отсекаются вместе с непарсящимися строками.
+  let imageUrl = "";
+  try {
+    const parsed = new URL((image ?? "").startsWith("http") ? (image ?? "") : `https://${image}`);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") imageUrl = parsed.href;
+  } catch {
+    imageUrl = "";
+  }
   return (
     <div className="flex flex-col gap-2">
       <div className="max-w-md overflow-hidden rounded-2xl border bg-white dark:bg-white/5">
-        {image ? (
+        {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt={title} className="h-44 w-full object-cover" />
+          <img src={imageUrl} alt={title} className="h-44 w-full object-cover" />
         ) : (
           <div className="flex h-24 w-full items-center justify-center bg-[#f97316]/10 text-sm text-neutral-600 dark:text-neutral-300">
             Нет og-изображения
