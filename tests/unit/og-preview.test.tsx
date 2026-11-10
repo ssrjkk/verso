@@ -22,12 +22,14 @@ describe("OgPreview: og-image", () => {
     );
   });
 
-  // Ключевое: в src не попадают схемы, которые браузер исполняет.
+  // Ключевое: в src не попадают схемы, которые браузер исполняет, и чужой host.
   for (const bad of [
     "javascript:alert(1)",
     "data:text/html,<script>alert(1)</script>",
     "file:///etc/passwd",
     "vbscript:msgbox(1)",
+    "//evil.example/a.png",
+    "/\\evil.example/a.png",
     "https://",
   ]) {
     it(`drops ${bad.slice(0, 24)}`, () => {
@@ -36,6 +38,11 @@ describe("OgPreview: og-image", () => {
       expect(html).toContain("Нет og-изображения");
     });
   }
+
+  // Загруженные в саму панель картинки хранятся путями того же origin.
+  it("keeps same-origin paths", () => {
+    expect(markup({ image: "/uploads/og/ab12cd.png" })).toContain('src="/uploads/og/ab12cd.png"');
+  });
 
   it("escapes meta-characters in the title instead of reinterpreting them", () => {
     const html = markup({ title: '<img src=x onerror=alert(1)>' });

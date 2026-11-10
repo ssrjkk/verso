@@ -1,5 +1,7 @@
 "use client";
 
+import { safeImageUrl } from "@/lib/og-image";
+
 type Props = {
   title: string;
   description: string;
@@ -14,15 +16,7 @@ export default function OgPreview({ title, description, image, url }: Props) {
   } catch {
     host = url;
   }
-  // og:image приходит из формы, поэтому в <img src> идёт только http(s)-адрес:
-  // javascript:/data:/file: отсекаются вместе с непарсящимися строками.
-  let imageUrl = "";
-  try {
-    const parsed = new URL((image ?? "").startsWith("http") ? (image ?? "") : `https://${image}`);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") imageUrl = parsed.href;
-  } catch {
-    imageUrl = "";
-  }
+  const imageUrl = safeImageUrl(image);
   return (
     <div className="flex flex-col gap-2">
       <div className="max-w-md overflow-hidden rounded-2xl border bg-white dark:bg-white/5">
