@@ -19,6 +19,18 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 
 export type TRPCContext = Awaited<ReturnType<typeof createTRPCContext>>;
 
+// zod 4 убрал ZodError#flatten — собираем ту же форму из error.issues.
+function flattenZodIssues(error: ZodError) {
+  const fieldErrors: Record<string, string[]> = {};
+  const formErrors: string[] = [];
+  for (const issue of error.issues) {
+    const key = issue.path.map(String).join(".");
+    if (!key) formErrors.push(issue.message);
+    else (fieldErrors[key] ??= []).push(issue.message);
+  }
+  return { fieldErrors, formErrors };
+}
+
 const t = initTRPC.context<TRPCContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
@@ -26,7 +38,7 @@ const t = initTRPC.context<TRPCContext>().create({
       ...shape,
       data: {
         ...shape.data,
-        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? flattenZodIssues(error.cause) : null,
       },
     };
   },

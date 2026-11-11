@@ -10,7 +10,7 @@ const WebhookUrl = z
   .max(2048)
   .superRefine((value, ctx) => {
     const result = validateWebhookUrl(value);
-    if (!result.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.reason });
+    if (!result.ok) ctx.addIssue({ code: "custom", message: result.reason });
   });
 
 export const blockRouter = createTRPCRouter({
