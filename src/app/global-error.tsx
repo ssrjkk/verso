@@ -27,6 +27,9 @@ export default function GlobalError({
             >
               Повторить
             </button>
+            {/* global-error заменяет root layout: полная навигация надёжнее
+                клиентского Link, если router-контекст уже недоступен. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{ border: "1px solid rgba(255,255,255,0.15)", color: "#f5f5f5", borderRadius: 12, padding: "0.65rem 1.1rem", fontWeight: 600, textDecoration: "none" }}

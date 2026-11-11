@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useMemo, useState, useSyncExternalStore } from "react";
 import {
   DndContext,
   closestCenter,
@@ -161,10 +161,21 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
 
   const slugValid = slug.trim() === "" || isValidSlug(slug.trim());
 
+  // Время — внешнее изменяемое состояние: обновляем раз в минуту и не
+  // трогаем Date.now() во время рендера (SSR-снапшот = 0 до гидратации).
+  const nowMs = useSyncExternalStore(
+    (onStoreChange) => {
+      const timer = window.setInterval(onStoreChange, 60_000);
+      return () => window.clearInterval(timer);
+    },
+    () => Date.now(),
+    () => 0,
+  );
+
   function relativeTime(iso: string | Date): string {
     const d = new Date(iso).getTime();
-    if (Number.isNaN(d)) return "";
-    const diffSec = Math.round((d - Date.now()) / 1000);
+    if (Number.isNaN(d) || nowMs === 0) return "";
+    const diffSec = Math.round((d - nowMs) / 1000);
     const abs = Math.abs(diffSec);
     const rtf = new Intl.RelativeTimeFormat("ru", { numeric: "auto" });
     if (abs < 60) return rtf.format(diffSec, "second");
@@ -180,36 +191,35 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  useEffect(() => {
-    if (!hydrated && blocksQuery.data) {
-      setBlocks(
-        blocksQuery.data.map((b) => ({
-          cid: b.id,
-          id: b.id,
-          type: (BLOCK_TYPES as readonly string[]).includes(b.type) ? (b.type as BlockType) : "RICH_TEXT",
-          order: b.order,
-          isVisible: b.isVisible,
-          propsJson: b.propsJson,
-        })),
-      );
-      setHydrated(true);
-    }
-  }, [blocksQuery.data, hydrated]);
+  // Однократная гидратация локального состояния из асинхронных данных.
+  // Это рекомендованный React-паттерн «adjust state during render»,
+  // а не эффект: эффект дал бы лишний кадр с пустым редактором.
+  if (!hydrated && blocksQuery.data) {
+    setBlocks(
+      blocksQuery.data.map((b) => ({
+        cid: b.id,
+        id: b.id,
+        type: (BLOCK_TYPES as readonly string[]).includes(b.type) ? (b.type as BlockType) : "RICH_TEXT",
+        order: b.order,
+        isVisible: b.isVisible,
+        propsJson: b.propsJson,
+      })),
+    );
+    setHydrated(true);
+  }
 
-  useEffect(() => {
+  if (!seoHydrated && entryQuery.data) {
     const e = entryQuery.data;
-    if (!seoHydrated && e) {
-      setTitle(e.title ?? "");
-      setSlug(e.slug ?? "");
-      setExcerpt(e.excerpt ?? "");
-      setSeoTitle(e.seoTitle ?? "");
-      setSeoDescription(e.seoDescription ?? "");
-      setOgImage((e as { ogImageUrl?: string | null }).ogImageUrl ?? "");
-      setScheduledFor(e.scheduledFor ? new Date(e.scheduledFor).toISOString().slice(0, 16) : "");
-      setStatus(e.status ?? "DRAFT");
-      setSeoHydrated(true);
-    }
-  }, [entryQuery.data, seoHydrated]);
+    setTitle(e.title ?? "");
+    setSlug(e.slug ?? "");
+    setExcerpt(e.excerpt ?? "");
+    setSeoTitle(e.seoTitle ?? "");
+    setSeoDescription(e.seoDescription ?? "");
+    setOgImage((e as { ogImageUrl?: string | null }).ogImageUrl ?? "");
+    setScheduledFor(e.scheduledFor ? new Date(e.scheduledFor).toISOString().slice(0, 16) : "");
+    setStatus(e.status ?? "DRAFT");
+    setSeoHydrated(true);
+  }
 
   const saveBlocks = trpc.block.upsertMany.useMutation({
     onSuccess: async () => {

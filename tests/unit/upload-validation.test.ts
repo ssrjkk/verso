@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateUploadFile, MAX_BYTES } from "@/lib/upload-validation";
+import { mediaCreateIssue, validateUploadFile, MAX_BYTES } from "@/lib/upload-validation";
 
 // Файлы с корректной сигнатурой: контракт требует magic bytes,
 // поэтому даже «метаданные-валидные» кейсы несут реальные заголовки.
@@ -57,5 +57,25 @@ describe("upload validation (stored-XSS gate)", () => {
     expect(validateUploadFile(new File([big], "a.png", { type: "image/png" }), big).ok).toBe(false);
     expect(validateUploadFile("nope", new Uint8Array(8)).ok).toBe(false);
     expect(validateUploadFile(null, new Uint8Array(8)).ok).toBe(false);
+  });
+});
+
+describe("mediaCreateIssue (direct DB write gate)", () => {
+  const managed = "/uploads/blog/123e4567-e89b-12d3-a456-426614174000.png";
+
+  it("принимает managed URL с совпадающим mime и размером", () => {
+    expect(mediaCreateIssue({ url: managed, mimeType: "image/png", sizeBytes: 0 })).toBeNull();
+    expect(mediaCreateIssue({ url: managed, mimeType: "image/png", sizeBytes: MAX_BYTES })).toBeNull();
+  });
+
+  it.each([
+    ["внешний URL", { url: "https://evil.test/x.png", mimeType: "image/png", sizeBytes: 1 }],
+    ["traversal", { url: "/uploads/../x.png", mimeType: "image/png", sizeBytes: 1 }],
+    ["неверный mime", { url: managed, mimeType: "image/jpeg", sizeBytes: 1 }],
+    ["отрицательный размер", { url: managed, mimeType: "image/png", sizeBytes: -1 }],
+    ["дробный размер", { url: managed, mimeType: "image/png", sizeBytes: 1.5 }],
+    ["слишком большой размер", { url: managed, mimeType: "image/png", sizeBytes: MAX_BYTES + 1 }],
+  ])("отклоняет %s", (_name, input) => {
+    expect(mediaCreateIssue(input)).toBeTruthy();
   });
 });

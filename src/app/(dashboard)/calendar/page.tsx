@@ -47,8 +47,8 @@ export default function CalendarPage() {
   const [taskEntryId, setTaskEntryId] = useState("");
   const [taskPriority, setTaskPriority] = useState<Priority>("MEDIUM");
 
-  const allEntries = entries ?? [];
-  const allTasks = tasks ?? [];
+  const allEntries = useMemo(() => entries ?? [], [entries]);
+  const allTasks = useMemo(() => tasks ?? [], [tasks]);
 
   const cells = useMemo(() => {
     const first = new Date(year, month, 1);

@@ -8,7 +8,7 @@ type Role = "VIEWER" | "MANAGER" | "ADMIN";
 // protectedProcedure — любой аутентифицированный,
 // editorProcedure — MANAGER и ADMIN,
 // adminProcedure — только ADMIN.
-const canRead = (_role: Role) => true;
+const canRead = () => true;
 const canEdit = (role: Role) => role === "MANAGER" || role === "ADMIN";
 const canAdmin = (role: Role) => role === "ADMIN";
 
@@ -19,7 +19,7 @@ describe("RBAC matrix", () => {
     ["ADMIN", true, true],
   ])("role %s -> edit=%s admin=%s", (role, edit, admin) => {
     const r = role as Role;
-    expect(canRead(r)).toBe(true);
+    expect(canRead()).toBe(true);
     expect(canEdit(r)).toBe(edit);
     expect(canAdmin(r)).toBe(admin);
   });
@@ -33,7 +33,7 @@ describe("RBAC matrix", () => {
   });
 
   it("ADMIN allowed everywhere", () => {
-    expect(canRead("ADMIN")).toBe(true);
+    expect(canRead()).toBe(true);
     expect(canEdit("ADMIN")).toBe(true);
     expect(canAdmin("ADMIN")).toBe(true);
   });

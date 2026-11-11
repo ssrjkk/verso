@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const WINDOW = 60_000;
 
@@ -39,5 +39,12 @@ describe("token bucket", () => {
     for (let i = 0; i < 2; i++) checkRateLimit("iso-a", { capacity: 2, windowMs: WINDOW }, 0);
     expect(checkRateLimit("iso-a", { capacity: 2, windowMs: WINDOW }, 0).ok).toBe(false);
     expect(checkRateLimit("iso-b", { capacity: 2, windowMs: WINDOW }, 0).ok).toBe(true);
+  });
+
+  it("Retry-After округляется вверх до секунд, минимум 1", () => {
+    expect(rateLimitHeaders(1)).toEqual({ "Retry-After": "1" });
+    expect(rateLimitHeaders(1000)).toEqual({ "Retry-After": "1" });
+    expect(rateLimitHeaders(1001)).toEqual({ "Retry-After": "2" });
+    expect(rateLimitHeaders(0)).toEqual({ "Retry-After": "1" });
   });
 });

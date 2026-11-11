@@ -156,8 +156,8 @@ function Gallery(p: AnyRecord) {
     <section className="rounded-2xl border p-6">
       {asString(p.title) ? <h3 className="font-display mb-4 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         {images.map((img, i) => (
+          // eslint-disable-next-line @next/next/no-img-element -- URL приходят из CMS; next/image требует известных доменов и ломает произвольные загрузки.
           <img key={i} src={img.src} alt={img.alt || `Изображение ${i + 1}`} className="aspect-[4/3] w-full rounded-xl border object-cover" loading="lazy" />
         ))}
       </div>

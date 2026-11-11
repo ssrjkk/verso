@@ -289,3 +289,33 @@ job падает до запуска тестов (наблюдалось два
 
 **Цена.** Если GitHub уберёт библиотеки из образа, шаг придётся вернуть
 или ставить зависимости точечно.
+
+### 15. Статические проверки: ESLint + покрытие в общих воротах
+
+**Решение.** Добавлен ESLint 9 с flat-config `eslint.config.mjs`:
+`eslint-config-next/core-web-vitals` + `eslint-config-next/typescript`.
+`npm run lint` включён первым шагом `test:all`, поэтому CI проверяет его
+до типов и тестов. Покрытие (`@vitest/coverage-v8`, `npm run test:coverage`)
+тоже включено в `test:all`; отчёт считает весь `src`, пороги —
+45% statements/lines, 42% branches, 32% functions. UI-страницы остаются
+преимущественно за e2e (83 сценария: рендер, 404, axe, скриншоты,
+клавиатура), поэтому общий процент ниже серверного слоя.
+
+TypeScript 7 не предоставляет API для typescript-eslint. Использован
+официальный side-by-side рецепт из анонса TS 7: `typescript` — npm-алиас
+на `@typescript/typescript6` (API для ESLint/Next), `@typescript/native` —
+алиас на `typescript@7`, который даёт быстрый `tsc`. `npm run typecheck`
+по-прежнему идёт через TS 7 (`npx tsc --version` → 7.0.2).
+
+**Почему.** До этого в проекте не было линтера, а `next build` в Next 16
+больше не запускает ESLint автоматически: ошибки React hooks/Next правил
+могли попасть в main незамеченными. Покрытие без порога — отчёт, который
+никто не обязан читать; порог превращает его в проверку.
+
+**Цена.** ESLint и typescript-eslint добавляют dev-зависимости и ~10 с к
+прогону. Порог покрытия может потребовать теста при добавлении крупного
+непокрытого модуля — это осознанно. Алиас `typescript` на TS 6 нужен
+только инструментам; сборка/типы используют TS 7. Для устранения
+moderate-уязвимости `minimatch@10` (DoS через globparts) добавлен точечный
+npm-override `@typescript-eslint/typescript-estree → minimatch@^11.0.8`;
+`npm audit` снова даёт 0 уязвимостей.

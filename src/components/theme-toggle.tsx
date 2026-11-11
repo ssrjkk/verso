@@ -1,11 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 
 export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Подписки нет: значение меняется только на границе сервер/клиент.
+  // useSyncExternalStore даёт false на сервере и true после гидратации
+  // без setState в эффекте (и без лишнего кадра).
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const label = "Переключить тему";
   // До монтирования рендерим детерминированный плейсхолдер:
   // theme на сервере и первом клиентском рендере расходится (undefined -> dark),

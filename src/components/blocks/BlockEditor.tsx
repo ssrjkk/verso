@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { DEFAULT_BLOCKS, type BlockType } from "./block-defaults";
 
 type Props = {
@@ -71,15 +71,19 @@ function JsonListEditor({
 }) {
   const [text, setText] = useState(() => JSON.stringify(data, null, 2));
   const [error, setError] = useState<string | null>(null);
+  const [prevData, setPrevData] = useState(data);
   const baseId = useId();
   const textareaId = `${baseId}-json`;
   const hintId = `${baseId}-hint`;
   const errorId = `${baseId}-error`;
 
-  useEffect(() => {
+  // Внешний сброс/применение меняет data — синхронизируем редактируемый
+  // текст во время рендера (React: adjusting state when a prop changes).
+  if (data !== prevData) {
+    setPrevData(data);
     setText(JSON.stringify(data, null, 2));
     setError(null);
-  }, [data]);
+  }
 
   const apply = () => {
     try {

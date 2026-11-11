@@ -18,28 +18,37 @@ export function CommandPalette() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const openPalette = () => {
+    setQ("");
+    setActive(0);
+    setOpen(true);
+  };
+
   // ⌘K / Ctrl+K — открыть/закрыть, Esc — закрыть
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        if (open) {
+          setOpen(false);
+        } else {
+          setQ("");
+          setActive(0);
+          setOpen(true);
+        }
       } else if (e.key === "Escape") {
         setOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
-    if (open) {
-      setQ("");
-      setActive(0);
-      const t = window.setTimeout(() => inputRef.current?.focus(), 0);
-      return () => window.clearTimeout(t);
-    }
-  }, [open ]);
+    if (!open) return;
+    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
 
   // Три параллельных запроса, результаты объединяются
   const needle = q.trim();
@@ -61,10 +70,6 @@ export function CommandPalette() {
       .map<PaletteItem>((m) => ({ kind: "Медиа", label: m.filename, sub: m.folder, href: "/media" }));
     return [...cols, ...ents, ...med];
   }, [needle, collectionsQuery.data, entriesQuery.data, mediaQuery.data]);
-
-  useEffect(() => {
-    setActive(0);
-  }, [needle]);
 
   const clamped = items.length === 0 ? 0 : Math.min(active, items.length - 1);
 
@@ -89,7 +94,7 @@ export function CommandPalette() {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={openPalette}
         aria-label="Открыть глобальный поиск (Ctrl+K): ⌘K — поиск…"
         aria-haspopup="dialog"
         aria-expanded={false}
@@ -119,7 +124,10 @@ export function CommandPalette() {
           id="command-palette-input"
           ref={inputRef}
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setActive(0);
+          }}
           onKeyDown={onInputKeyDown}
           placeholder="Поиск записей, коллекций, медиа…"
           role="combobox"

@@ -26,19 +26,26 @@
     "kanban",
     "typescript"
   ],
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "pretest": "prisma generate",
     "pretest:e2e": "prisma generate",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:all": "npm run typecheck && npm test && npm run build && npm run test:e2e",
+    "test:all": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e",
     "predb:seed": "prisma generate",
     "predev": "prisma generate",
     "pretypecheck": "prisma generate"
@@ -75,10 +82,14 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitest/coverage-v8": "^4.1.12",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.5",
     "prisma": "^7.10.1",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.19.2",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^4.1.12"
   }
 }
