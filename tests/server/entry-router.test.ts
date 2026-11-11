@@ -161,6 +161,60 @@ describe("entry.create", () => {
     });
   });
 
+  it("занятый slug получает суффикс -2 в пределах коллекции", async () => {
+    (db.entry.findUnique as MockFn)
+      .mockResolvedValueOnce({ id: "existing" })
+      .mockResolvedValueOnce(null);
+
+    const out = await caller("MANAGER", db).entry.create({
+      collectionId: "c1",
+      title: "T",
+      slug: "same",
+    });
+
+    expect(out).toMatchObject({ slug: "same-2" });
+    expect(db.entry.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { collectionId_slug: { collectionId: "c1", slug: "same" } },
+    });
+    expect(db.entry.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { collectionId_slug: { collectionId: "c1", slug: "same-2" } },
+    });
+  });
+
+  it("P2002 на гонке повторяет всю транзакцию и завершается успехом", async () => {
+    (db.entry.create as MockFn).mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+
+    const out = await caller("MANAGER", db).entry.create({ collectionId: "c1", title: "T" });
+
+    expect(out).toMatchObject({ id: "e1" });
+    expect(db.entry.create).toHaveBeenCalledTimes(2);
+    expect(db.revision.create).toHaveBeenCalledTimes(1);
+    expect(db.activityLog.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("100 занятых вариантов slug -> CONFLICT без записи", async () => {
+    (db.entry.findUnique as MockFn).mockResolvedValue({ id: "taken" });
+
+    await expect(
+      caller("MANAGER", db).entry.create({ collectionId: "c1", title: "T" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    expect(db.entry.findUnique).toHaveBeenCalledTimes(100);
+    expect(db.entry.create).not.toHaveBeenCalled();
+  });
+
+  it("не-P2002 ошибка транзакции не повторяется", async () => {
+    (db.entry.create as MockFn).mockRejectedValue(new Error("disk full"));
+
+    await expect(
+      caller("MANAGER", db).entry.create({ collectionId: "c1", title: "T" }),
+    ).rejects.toThrow("disk full");
+
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
+
   it("VIEWER не создаёт запись", async () => {
     await expect(
       caller("VIEWER", db).entry.create({ collectionId: "c1", title: "T" }),

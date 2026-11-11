@@ -70,6 +70,36 @@ describe("collection mutations", () => {
     expect(out).toMatchObject({ slug: "my-collection" });
   });
 
+  it("create: занятый slug получает суффикс -2", async () => {
+    (db.collection.findUnique as MockFn)
+      .mockResolvedValueOnce({ id: "existing" })
+      .mockResolvedValueOnce(null);
+
+    const out = await caller("ADMIN", db).collection.create({ name: "X", slug: "same" });
+
+    expect(out).toMatchObject({ slug: "same-2" });
+    expect(db.collection.findUnique).toHaveBeenNthCalledWith(1, { where: { slug: "same" } });
+    expect(db.collection.findUnique).toHaveBeenNthCalledWith(2, { where: { slug: "same-2" } });
+  });
+
+  it("create: P2002 на гонке повторяет попытку и не теряет коллекцию", async () => {
+    (db.collection.create as MockFn)
+      .mockRejectedValueOnce(Object.assign(new Error("unique"), { code: "P2002" }))
+      .mockResolvedValueOnce({ id: "c1", slug: "x" });
+
+    const out = await caller("ADMIN", db).collection.create({ name: "X" });
+
+    expect(out).toMatchObject({ id: "c1", slug: "x" });
+    expect(db.collection.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("create: не-P2002 ошибка не повторяется", async () => {
+    (db.collection.create as MockFn).mockRejectedValue(new Error("disk full"));
+
+    await expect(caller("ADMIN", db).collection.create({ name: "X" })).rejects.toThrow("disk full");
+    expect(db.collection.create).toHaveBeenCalledTimes(1);
+  });
+
   it("update: только переданные поля", async () => {
     await caller("ADMIN", db).collection.update({ id: "c1", name: "New" });
     expect(db.collection.update).toHaveBeenCalledWith({
@@ -203,6 +233,16 @@ describe("collection importCsv", () => {
 
     expect(out).toEqual({ imported: 2, skipped: 1, conflicts: 1 });
     expect(db.entry.create).toHaveBeenCalledTimes(3);
+  });
+
+  it("все строки без title: imported 0, skipped считает каждую", async () => {
+    const out = await caller("MANAGER", db).collection.importCsv({
+      collectionId: "c1",
+      csv: "title,slug\n,no-title\n   ,also-no-title",
+    });
+
+    expect(out).toEqual({ imported: 0, skipped: 2, conflicts: 0 });
+    expect(db.entry.createMany).not.toHaveBeenCalled();
   });
 
   it("не-P2002 ошибка не проглатывается", async () => {

@@ -47,4 +47,14 @@ describe("token bucket", () => {
     expect(rateLimitHeaders(1001)).toEqual({ "Retry-After": "2" });
     expect(rateLimitHeaders(0)).toEqual({ "Retry-After": "1" });
   });
+
+  it("при переполнении (>10k ведер) старые вычищаются, лимит продолжает работать", () => {
+    for (let i = 0; i < 10_001; i++) {
+      checkRateLimit(`bulk-${i}`, { capacity: 1, windowMs: WINDOW }, 0);
+    }
+    // Скачок времени: prune удаляет ведра, не обновлявшиеся дольше 2 окон.
+    expect(checkRateLimit("after-prune", { capacity: 1, windowMs: WINDOW }, WINDOW * 10).ok).toBe(
+      true,
+    );
+  });
 });
