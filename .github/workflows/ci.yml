@@ -23,5 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # ubuntu-latest уже содержит системные библиотеки Chromium; --with-deps
+      # ходит в apt и валит job при недоступности archive.ubuntu.com.
+      - run: npx playwright install chromium
       - run: npm run test:all
