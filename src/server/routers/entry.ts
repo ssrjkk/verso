@@ -4,8 +4,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, editorProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
 import { fireWebhooks } from "@/lib/webhook";
-
-const Status = z.enum(["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"]);
+import { EntryStatus, isEntryStatus } from "@/lib/entry-status";
+import { buildEntrySnapshot, parseEntrySnapshot } from "@/lib/entry-snapshot";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -16,14 +16,16 @@ async function uniqueEntrySlug(
   prisma: Pick<DbClient, "entry">,
   collectionId: string,
   base: string,
+  excludeId?: string,
 ): Promise<string> {
   const root = slugify(base) || "entry";
   for (let i = 0; i < 100; i++) {
     const candidate = i === 0 ? root : `${root}-${i + 1}`;
     const exists = await prisma.entry.findUnique({
       where: { collectionId_slug: { collectionId, slug: candidate } },
+      select: { id: true },
     });
-    if (!exists) return candidate;
+    if (!exists || (excludeId !== undefined && exists.id === excludeId)) return candidate;
   }
   throw new TRPCError({ code: "CONFLICT", message: "Не удалось подобрать свободный slug" });
 }
@@ -33,7 +35,7 @@ export const entryRouter = createTRPCRouter({
     .input(
       z.object({
         collectionId: z.string().optional(),
-        status: Status.optional(),
+        status: EntryStatus.optional(),
         tagId: z.string().optional(),
         search: z.string().optional(),
         // Пагинационный колпак против JSON-бомб: дефолт 200, жёсткий потолок 1000.
@@ -117,7 +119,7 @@ export const entryRouter = createTRPCRouter({
           data: {
             entryId: entry.id,
             version: 1,
-            snapshotJson: JSON.stringify({ entry, blocks: [] }),
+            snapshotJson: buildEntrySnapshot(entry),
             changeNote: "Первоначальное создание",
             authorId: ctx.user.id,
           },
@@ -145,7 +147,7 @@ export const entryRouter = createTRPCRouter({
         title: z.string().min(1).max(300).optional(),
         slug: z.string().max(150).optional(),
         excerpt: z.string().max(5000).optional(),
-        status: Status.optional(),
+        status: EntryStatus.optional(),
         fieldsJson: z.string().max(200_000).optional(),
         seoTitle: z.string().max(200).optional(),
         seoDescription: z.string().max(500).optional(),
@@ -162,7 +164,13 @@ export const entryRouter = createTRPCRouter({
         // Base row for FK-free checks below (collection scope + optimistic lock).
         const current = await tx.entry.findUnique({
           where: { id },
-          select: { updatedAt: true, collectionId: true, slug: true },
+          select: {
+            updatedAt: true,
+            collectionId: true,
+            slug: true,
+            status: true,
+            publishedAt: true,
+          },
         });
         if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
         if (expectedUpdatedAt) {
@@ -178,37 +186,48 @@ export const entryRouter = createTRPCRouter({
         const data = { ...rest } as Prisma.EntryUpdateInput;
         if (rest.slug) {
           // Свой slug не трогаем; чужой занятый получает суффикс -2, -3, ...
-          const base = slugify(rest.slug) || current.slug;
-          let candidate = base;
-          for (let i = 0; i < 100; i++) {
-            const clash = await tx.entry.findUnique({
-              where: { collectionId_slug: { collectionId: current.collectionId, slug: candidate } },
-              select: { id: true },
-            });
-            if (!clash || clash.id === id) break;
-            candidate = `${base}-${i + 2}`;
-          }
-          data.slug = candidate;
+          data.slug = await uniqueEntrySlug(
+            tx,
+            current.collectionId,
+            slugify(rest.slug) || current.slug,
+            id,
+          );
         }
         if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
-        const updated = await tx.entry.update({ where: { id }, data, include: { blocks: true } });
+        // Публикация через update — тот же инвариант, что и entry.publish:
+        // у PUBLISHED всегда есть publishedAt; повторное сохранение дату не сдвигает.
+        if (rest.status === "PUBLISHED") {
+          data.publishedAt = current.publishedAt ?? new Date();
+        }
+        const updated = await tx.entry.update({
+          where: { id },
+          data,
+          include: { blocks: true, tags: { include: { tag: true } } },
+        });
         const count = await tx.revision.count({ where: { entryId: id } });
         await tx.revision.create({
           data: {
             entryId: id,
             version: count + 1,
-            snapshotJson: JSON.stringify({ entry: updated, blocks: updated.blocks }),
+            snapshotJson: buildEntrySnapshot(
+              updated,
+              updated.blocks ?? [],
+              (updated.tags ?? []).flatMap((t) => (t.tag?.name ? [t.tag.name] : [])),
+            ),
             changeNote: changeNote ?? "Обновление",
             authorId: ctx.user.id,
           },
         });
-        return updated;
-      }).then((updated) => {
+        return { updated, wasPublished: current.status === "PUBLISHED" };
+      }).then(({ updated, wasPublished }) => {
         // Сеть — только после коммита и без ожидания: публикация не блокируется.
-        const { status } = updated;
+        // entry.published — только на переходе в PUBLISHED, правки живой
+        // публикации идут как entry.updated (без дублей события публикации).
         fireWebhooks(
           ctx.prisma,
-          status === "PUBLISHED" ? "entry.published" : "entry.updated",
+          updated.status === "PUBLISHED" && !wasPublished
+            ? "entry.published"
+            : "entry.updated",
           updated,
         );
         return updated;
@@ -221,16 +240,24 @@ export const entryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const stage = await ctx.prisma.workflowStage.findUnique({ where: { id: input.stageId } });
       if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
-      const existing = await ctx.prisma.entry.findUnique({ where: { id: input.entryId }, select: { id: true } });
+      if (!isEntryStatus(stage.targetState)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Некорректный статус этапа" });
+      }
+      const existing = await ctx.prisma.entry.findUnique({
+        where: { id: input.entryId },
+        select: { id: true, status: true, publishedAt: true },
+      });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
-      const isPublishing = stage.targetState === "PUBLISHED";
+      // Переход в публикацию, а не «уже опубликована»: повторный дроп
+      // на тот же этап не двигает publishedAt и не дублирует вебхук.
+      const isPublishing = stage.targetState === "PUBLISHED" && existing.status !== "PUBLISHED";
       const entry = await ctx.prisma.$transaction(async (tx) => {
         const e = await tx.entry.update({
           where: { id: input.entryId },
           data: {
             stageId: stage.id,
             status: stage.targetState,
-            publishedAt: isPublishing ? new Date() : undefined,
+            publishedAt: isPublishing ? (existing.publishedAt ?? new Date()) : undefined,
           },
         });
         await tx.activityLog.create({
@@ -249,17 +276,95 @@ export const entryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const rev = await ctx.prisma.revision.findUnique({ where: { id: input.revisionId } });
       if (!rev || rev.entryId !== input.entryId) throw new TRPCError({ code: "NOT_FOUND", message: "Ревизия не найдена" });
-      const snap = JSON.parse(rev.snapshotJson) as { entry: { title: string; fieldsJson: string; slug: string }; blocks: { type: string; order: number; propsJson: string }[] };
+      const snap = parseEntrySnapshot(rev.snapshotJson);
+      const snapEntry = snap.entry;
       return ctx.prisma.$transaction(async (tx) => {
-        const entry = await tx.entry.update({
+        const current = await tx.entry.findUnique({
           where: { id: input.entryId },
-          data: { title: snap.entry.title, fieldsJson: snap.entry.fieldsJson, slug: snap.entry.slug },
+          select: { collectionId: true, slug: true },
         });
-        await tx.pageBlock.deleteMany({ where: { entryId: input.entryId } });
-        if (snap.blocks?.length) {
-          await tx.pageBlock.createMany({
-            data: snap.blocks.map((b) => ({ entryId: input.entryId, type: b.type, order: b.order, propsJson: b.propsJson })),
+        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+
+        // Восстанавливаем весь скалярный снимок, а не три поля: SEO, статус,
+        // даты и этап тоже часть ревизии. id/collectionId/authorId не трогаем.
+        const data: Prisma.EntryUncheckedUpdateInput = {};
+        if (typeof snapEntry.title === "string") data.title = snapEntry.title;
+        if (typeof snapEntry.excerpt === "string" || snapEntry.excerpt === null) {
+          data.excerpt = snapEntry.excerpt;
+        }
+        if (typeof snapEntry.fieldsJson === "string") data.fieldsJson = snapEntry.fieldsJson;
+        if (typeof snapEntry.seoTitle === "string" || snapEntry.seoTitle === null) {
+          data.seoTitle = snapEntry.seoTitle;
+        }
+        if (typeof snapEntry.seoDescription === "string" || snapEntry.seoDescription === null) {
+          data.seoDescription = snapEntry.seoDescription;
+        }
+        if (typeof snapEntry.ogImageUrl === "string" || snapEntry.ogImageUrl === null) {
+          data.ogImageUrl = snapEntry.ogImageUrl;
+        }
+        if (typeof snapEntry.canonicalUrl === "string" || snapEntry.canonicalUrl === null) {
+          data.canonicalUrl = snapEntry.canonicalUrl;
+        }
+        if (typeof snapEntry.noIndex === "boolean") data.noIndex = snapEntry.noIndex;
+        if (isEntryStatus(snapEntry.status)) data.status = snapEntry.status;
+        if (typeof snapEntry.slug === "string" && snapEntry.slug) {
+          data.slug = await uniqueEntrySlug(
+            tx,
+            current.collectionId,
+            snapEntry.slug,
+            input.entryId,
+          );
+        }
+        if (typeof snapEntry.stageId === "string") {
+          const stage = await tx.workflowStage.findUnique({
+            where: { id: snapEntry.stageId },
+            select: { id: true },
           });
+          // Удалённый этап не должен ронять откат: просто оставляем текущий.
+          if (stage) data.stageId = stage.id;
+        } else if (snapEntry.stageId === null) {
+          data.stageId = null;
+        }
+        if (snapEntry.scheduledFor === null) data.scheduledFor = null;
+        else if (typeof snapEntry.scheduledFor === "string") {
+          const date = new Date(snapEntry.scheduledFor);
+          if (!Number.isNaN(date.getTime())) data.scheduledFor = date;
+        }
+        if (snapEntry.publishedAt === null) data.publishedAt = null;
+        else if (typeof snapEntry.publishedAt === "string") {
+          const date = new Date(snapEntry.publishedAt);
+          if (!Number.isNaN(date.getTime())) data.publishedAt = date;
+        }
+
+        const entry = await tx.entry.update({ where: { id: input.entryId }, data });
+        await tx.pageBlock.deleteMany({ where: { entryId: input.entryId } });
+        if (snap.blocks.length) {
+          await tx.pageBlock.createMany({
+            data: snap.blocks.map((b) => ({
+              entryId: input.entryId,
+              type: typeof b.type === "string" ? b.type : "RICH_TEXT",
+              order: typeof b.order === "number" ? b.order : 0,
+              isVisible: typeof b.isVisible === "boolean" ? b.isVisible : true,
+              propsJson: typeof b.propsJson === "string" ? b.propsJson : "{}",
+            })),
+          });
+        }
+        // Теги появились в снапшотах позже: старые ревизии их не содержат
+        // и не должны молча стирать текущие связи.
+        if (snap.tags) {
+          const names = [...new Set(snap.tags.map((t) => t.trim()).filter(Boolean))].slice(0, 20);
+          for (const name of names) {
+            await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
+          }
+          await tx.entryTag.deleteMany({ where: { entryId: input.entryId } });
+          if (names.length) {
+            const tags = await tx.tag.findMany({ where: { name: { in: names } } });
+            if (tags.length) {
+              await tx.entryTag.createMany({
+                data: tags.map((t) => ({ entryId: input.entryId, tagId: t.id })),
+              });
+            }
+          }
         }
         const count = await tx.revision.count({ where: { entryId: input.entryId } });
         await tx.revision.create({
@@ -273,14 +378,48 @@ export const entryRouter = createTRPCRouter({
     }),
 
   publish: editorProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    const existing = await ctx.prisma.entry.findUnique({ where: { id: input.id }, select: { id: true } });
-    if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
-    const entry = await ctx.prisma.entry.update({
-      where: { id: input.id },
-      data: { status: "PUBLISHED", publishedAt: new Date() },
+    const result = await ctx.prisma.$transaction(async (tx) => {
+      const current = await tx.entry.findUnique({
+        where: { id: input.id },
+        include: { blocks: true, tags: { include: { tag: true } } },
+      });
+      if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+      // Идемпотентность: повторная публикация не двигает дату, не плодит
+      // ревизии/activity и не рассылает второй entry.published.
+      if (current.status === "PUBLISHED") return { entry: current, changed: false };
+
+      const entry = await tx.entry.update({
+        where: { id: input.id },
+        data: { status: "PUBLISHED", publishedAt: current.publishedAt ?? new Date() },
+        include: { blocks: true, tags: { include: { tag: true } } },
+      });
+      const count = await tx.revision.count({ where: { entryId: entry.id } });
+      await tx.revision.create({
+        data: {
+          entryId: entry.id,
+          version: count + 1,
+          snapshotJson: buildEntrySnapshot(
+            entry,
+            entry.blocks ?? [],
+            (entry.tags ?? []).flatMap((t) => (t.tag?.name ? [t.tag.name] : [])),
+          ),
+          changeNote: "Публикация",
+          authorId: ctx.user.id,
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          entryId: entry.id,
+          userId: ctx.user.id,
+          action: "PUBLISHED",
+          comment: "Запись опубликована",
+        },
+      });
+      return { entry, changed: true };
     });
-    fireWebhooks(ctx.prisma, "entry.published", entry);
-    return entry;
+    // Сеть — только после коммита.
+    if (result.changed) fireWebhooks(ctx.prisma, "entry.published", result.entry);
+    return result.entry;
   }),
 
   remove: editorProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
@@ -293,19 +432,23 @@ export const entryRouter = createTRPCRouter({
     .input(z.object({ entryId: z.string(), tags: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       const names = [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))].slice(0, 20);
-      for (const name of names) {
-        await ctx.prisma.tag.upsert({ where: { name }, create: { name }, update: {} });
-      }
-      await ctx.prisma.entryTag.deleteMany({ where: { entryId: input.entryId } });
-      if (names.length) {
-        const tags = await ctx.prisma.tag.findMany({ where: { name: { in: names } } });
-        await ctx.prisma.entryTag.createMany({
-          data: tags.map((t) => ({ entryId: input.entryId, tagId: t.id })),
+      // Upsert тегов + пересоздание связей — атомарно: сбой посередине
+      // не оставит запись с частичным набором тегов.
+      return ctx.prisma.$transaction(async (tx) => {
+        for (const name of names) {
+          await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
+        }
+        await tx.entryTag.deleteMany({ where: { entryId: input.entryId } });
+        if (names.length) {
+          const tags = await tx.tag.findMany({ where: { name: { in: names } } });
+          await tx.entryTag.createMany({
+            data: tags.map((t) => ({ entryId: input.entryId, tagId: t.id })),
+          });
+        }
+        return tx.entry.findUnique({
+          where: { id: input.entryId },
+          include: { tags: { include: { tag: true } } },
         });
-      }
-      return ctx.prisma.entry.findUnique({
-        where: { id: input.entryId },
-        include: { tags: { include: { tag: true } } },
       });
     }),
 

@@ -53,4 +53,29 @@ describe("media.remove deletes row + file, never escapes uploads/", () => {
     expect(prisma.mediaAsset.delete).toHaveBeenCalledTimes(1);
     expect(unlink).not.toHaveBeenCalled();
   });
+
+  it("deleteMany: читает URL до удаления строк и чистит каждый файл", async () => {
+    const prisma = {
+      mediaAsset: {
+        findMany: vi.fn(async () => [
+          { url: "/uploads/blog/a.png" },
+          { url: "/uploads/../../etc/passwd" },
+        ]),
+        deleteMany: vi.fn(async () => ({ count: 2 })),
+      },
+    };
+    const out = await caller(prisma).media.deleteMany({ ids: ["m1", "m2"] });
+
+    expect(out).toEqual({ count: 2 });
+    expect(prisma.mediaAsset.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["m1", "m2"] } },
+      select: { url: true },
+    });
+    expect(prisma.mediaAsset.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["m1", "m2"] } },
+    });
+    expect(unlink).toHaveBeenCalledTimes(1);
+    const target = (unlink as unknown as { mock: { calls: string[][] } }).mock.calls[0][0] as string;
+    expect(target.endsWith("a.png")).toBe(true);
+  });
 });

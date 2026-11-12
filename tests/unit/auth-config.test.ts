@@ -33,6 +33,7 @@ const saved = {
   secret: process.env.BETTER_AUTH_SECRET,
   phase: process.env.NEXT_PHASE,
   rateLimit: process.env.AUTH_RATELIMIT,
+  harness: process.env.VERSO_TEST_HARNESS,
   authUrl: process.env.BETTER_AUTH_URL,
   appUrl: process.env.NEXT_PUBLIC_APP_URL,
   origins: process.env.TRUSTED_ORIGINS,
@@ -56,6 +57,7 @@ beforeEach(() => {
   restore("BETTER_AUTH_SECRET", undefined);
   restore("NEXT_PHASE", undefined);
   restore("AUTH_RATELIMIT", undefined);
+  restore("VERSO_TEST_HARNESS", undefined);
   restore("BETTER_AUTH_URL", undefined);
   restore("NEXT_PUBLIC_APP_URL", undefined);
   restore("TRUSTED_ORIGINS", undefined);
@@ -66,6 +68,7 @@ afterEach(() => {
   restore("BETTER_AUTH_SECRET", saved.secret);
   restore("NEXT_PHASE", saved.phase);
   restore("AUTH_RATELIMIT", saved.rateLimit);
+  restore("VERSO_TEST_HARNESS", saved.harness);
   restore("BETTER_AUTH_URL", saved.authUrl);
   restore("NEXT_PUBLIC_APP_URL", saved.appUrl);
   restore("TRUSTED_ORIGINS", saved.origins);
@@ -78,7 +81,7 @@ function importAuth() {
 describe("auth: production-секрет", () => {
   it("без секрета падает до создания клиента", async () => {
     await expect(importAuth()).rejects.toThrow(
-      "BETTER_AUTH_SECRET must be set to a strong random value in production",
+      "BETTER_AUTH_SECRET must be a random value of at least 32 characters in production",
     );
     expect(mocks.prismaAdapter).not.toHaveBeenCalled();
   });
@@ -90,6 +93,16 @@ describe("auth: production-секрет", () => {
       await expect(importAuth()).rejects.toThrow("BETTER_AUTH_SECRET");
     },
   );
+
+  it("секрет короче 32 символов отклоняется", async () => {
+    process.env.BETTER_AUTH_SECRET = "s".repeat(31);
+    await expect(importAuth()).rejects.toThrow("at least 32 characters");
+  });
+
+  it("ровно 32 символа — достаточно", async () => {
+    process.env.BETTER_AUTH_SECRET = "s".repeat(32);
+    await expect(importAuth()).resolves.toBeDefined();
+  });
 
   it("сильный секрет создаёт auth с безопасными настройками", async () => {
     process.env.BETTER_AUTH_SECRET = "s".repeat(40);
@@ -115,10 +128,22 @@ describe("auth: production-секрет", () => {
     expect(mod.auth).toEqual({ marker: "auth" });
   });
 
-  it("AUTH_RATELIMIT=off — тестовый харнесс: секрет не нужен, лимит выключен", async () => {
+  it("AUTH_RATELIMIT=off сам по себе не отключает проверку секрета", async () => {
+    process.env.AUTH_RATELIMIT = "off";
+    await expect(importAuth()).rejects.toThrow("BETTER_AUTH_SECRET");
+  });
+
+  it("VERSO_TEST_HARNESS=1: секрет не нужен, AUTH_RATELIMIT отключает лимит", async () => {
+    process.env.VERSO_TEST_HARNESS = "1";
     process.env.AUTH_RATELIMIT = "off";
     await importAuth();
     expect(mocks.config?.rateLimit).toEqual({ enabled: false });
+  });
+
+  it("VERSO_TEST_HARNESS=1 без AUTH_RATELIMIT: лимит остаётся включённым", async () => {
+    process.env.VERSO_TEST_HARNESS = "1";
+    await importAuth();
+    expect(mocks.config?.rateLimit).toEqual({ enabled: true });
   });
 
   it("trustedOrigins: фильтрует пустые и склеивает источники", async () => {

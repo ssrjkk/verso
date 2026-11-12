@@ -4,8 +4,40 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
 import { toCsv, parseCsv, sanitizeCsvCell } from "@/lib/csv";
+import { EntryStatus } from "@/lib/entry-status";
+import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
+
+type ImportRow = {
+  collectionId: string;
+  title: string;
+  slug: string;
+  authorId: string;
+};
+
+/** Импорт — не «сырая» вставка: запись получает ревизию v1 и activity. */
+async function createImportedEntry(tx: Prisma.TransactionClient, data: ImportRow) {
+  const entry = await tx.entry.create({ data });
+  await tx.revision.create({
+    data: {
+      entryId: entry.id,
+      version: 1,
+      snapshotJson: buildEntrySnapshot(entry),
+      changeNote: "Импорт из CSV",
+      authorId: data.authorId,
+    },
+  });
+  await tx.activityLog.create({
+    data: {
+      entryId: entry.id,
+      userId: data.authorId,
+      action: "CREATED",
+      comment: `Импортирована запись «${entry.title}»`,
+    },
+  });
+  return entry;
+}
 
 // Свободный slug с автосуффиксом (-2, -3, …): дубль названия не должен
 // ронять создание P2002, а молча получать уникальный slug.
@@ -89,7 +121,7 @@ export const collectionRouter = createTRPCRouter({
     .input(
       z.object({
         collectionId: z.string(),
-        status: z.enum(["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"]).optional(),
+        status: EntryStatus.optional(),
         search: z.string().optional(),
       }),
     )
@@ -127,13 +159,22 @@ export const collectionRouter = createTRPCRouter({
       const body = hasHeader ? rows.slice(1) : rows;
       const ti = hasHeader ? header.indexOf("title") : 0;
       const si = hasHeader ? header.indexOf("slug") : 1;
+      // authorId приходит от клиента: несуществующий автор — это 404,
+      // а не P2003/500 на вставке.
+      if (input.authorId) {
+        const author = await ctx.prisma.user.findUnique({
+          where: { id: input.authorId },
+          select: { id: true },
+        });
+        if (!author) throw new TRPCError({ code: "NOT_FOUND", message: "Автор не найден" });
+      }
       const existing = await ctx.prisma.entry.findMany({
         where: { collectionId: input.collectionId },
         select: { slug: true },
       });
       const seen = new Set(existing.map((e) => e.slug));
       const authorId = input.authorId ?? ctx.user.id;
-      const data: { collectionId: string; title: string; slug: string; authorId: string }[] = [];
+      const data: ImportRow[] = [];
       let skipped = 0;
       for (const row of body) {
         const title = (row[ti] ?? "").trim();
@@ -152,23 +193,28 @@ export const collectionRouter = createTRPCRouter({
       }
       if (data.length) {
         try {
-          const r = await ctx.prisma.entry.createMany({ data });
-          return { imported: r.count, skipped, conflicts: 0 };
+          await ctx.prisma.$transaction(async (tx) => {
+            for (const d of data) await createImportedEntry(tx, d);
+          });
+          return { imported: data.length, skipped, conflicts: 0 };
         } catch (e) {
           // Гонка параллельных импортов: P2002 на дубле slug.
-          // Добиваем построчно с точным учётом, чужое не глотаем.
+          // Добиваем построчно с точным учётом; прочие ошибки не глотаем.
           if ((e as { code?: string }).code !== "P2002") throw e;
           let imported = 0;
-          let skipped2 = skipped;
+          let conflicts = 0;
           for (const d of data) {
             try {
-              await ctx.prisma.entry.create({ data: d });
+              await ctx.prisma.$transaction(async (tx) => {
+                await createImportedEntry(tx, d);
+              });
               imported++;
-            } catch {
-              skipped2++;
+            } catch (rowError) {
+              if ((rowError as { code?: string }).code !== "P2002") throw rowError;
+              conflicts++;
             }
           }
-          return { imported, skipped: skipped2, conflicts: data.length - imported };
+          return { imported, skipped, conflicts };
         }
       }
       return { imported: 0, skipped, conflicts: 0 };

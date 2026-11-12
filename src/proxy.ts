@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { safeInternalPath } from "@/lib/safe-redirect";
 
 const PROTECTED = [
   "/dashboard",
@@ -26,16 +27,9 @@ function hasSessionCookie(req: NextRequest): boolean {
     .some((c) => c.name.includes("better-auth.session_token") && Boolean(c.value));
 }
 
+// Defense in depth: даже если в БД лежит легаси-строка, служебные цели не отдаём.
 function isSafeRelativeTarget(toPath: string): boolean {
-  if (!toPath.startsWith("/") || toPath.startsWith("//") || toPath.includes("\\")) {
-    return false;
-  }
-  // Defense in depth: даже если в БД лежит легаси-строка, служебные цели не отдаём.
-  const pathname = toPath.split(/[?#]/, 1)[0];
-  for (const prefix of ["/api", "/_next"] as const) {
-    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return false;
-  }
-  return true;
+  return safeInternalPath(toPath, "") === toPath;
 }
 
 /**

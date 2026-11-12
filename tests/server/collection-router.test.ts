@@ -14,11 +14,15 @@ function makeDb() {
     },
     entry: {
       findMany: vi.fn(async () => []),
-      createMany: vi.fn(async ({ data }: { data: unknown[] }) => ({ count: data.length })),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "e1", ...data })),
     },
+    user: {
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })),
+    },
+    revision: { create: vi.fn(async () => ({})) },
+    activityLog: { create: vi.fn(async () => ({})) },
   };
-  return db;
+  return { ...db, $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)) };
 }
 
 let db: ReturnType<typeof makeDb>;
@@ -185,12 +189,15 @@ describe("collection importCsv", () => {
     const out = await caller("MANAGER", db).collection.importCsv({ collectionId: "c1", csv });
 
     expect(out).toEqual({ imported: 2, skipped: 3, conflicts: 0 });
-    expect(db.entry.createMany).toHaveBeenCalledWith({
-      data: [
-        { collectionId: "c1", title: "Первая", slug: "first", authorId: "u-MANAGER" },
-        { collectionId: "c1", title: "Новая", slug: "new-one", authorId: "u-MANAGER" },
-      ],
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: { collectionId: "c1", title: "Первая", slug: "first", authorId: "u-MANAGER" },
     });
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: { collectionId: "c1", title: "Новая", slug: "new-one", authorId: "u-MANAGER" },
+    });
+    // Импорт — не сырая вставка: у каждой записи есть ревизия v1 и activity.
+    expect(db.revision.create).toHaveBeenCalledTimes(2);
+    expect(db.activityLog.create).toHaveBeenCalledTimes(2);
   });
 
   it("без header: первая колонка title, вторая slug", async () => {
@@ -199,40 +206,56 @@ describe("collection importCsv", () => {
       csv: "Заголовок,my-slug\nВторой,",
     });
     expect(out).toEqual({ imported: 2, skipped: 0, conflicts: 0 });
-    expect(db.entry.createMany).toHaveBeenCalledWith({
-      data: [
-        { collectionId: "c1", title: "Заголовок", slug: "my-slug", authorId: "u-MANAGER" },
-        { collectionId: "c1", title: "Второй", slug: "vtoroy", authorId: "u-MANAGER" },
-      ],
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: { collectionId: "c1", title: "Заголовок", slug: "my-slug", authorId: "u-MANAGER" },
+    });
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: { collectionId: "c1", title: "Второй", slug: "vtoroy", authorId: "u-MANAGER" },
     });
   });
 
-  it("authorId можно переопределить", async () => {
+  it("authorId проверяется и переопределяет автора", async () => {
     await caller("MANAGER", db).collection.importCsv({
       collectionId: "c1",
       csv: "title\nT",
       authorId: "author-x",
     });
-    expect(db.entry.createMany).toHaveBeenCalledWith({
-      data: [{ collectionId: "c1", title: "T", slug: "t", authorId: "author-x" }],
+    expect(db.user.findUnique).toHaveBeenCalledWith({
+      where: { id: "author-x" },
+      select: { id: true },
+    });
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: { collectionId: "c1", title: "T", slug: "t", authorId: "author-x" },
     });
   });
 
-  it("P2002 на createMany: построчный добор с точным учётом конфликтов", async () => {
-    (db.entry.createMany as MockFn).mockRejectedValue(
-      Object.assign(new Error("unique"), { code: "P2002" }),
-    );
+  it("несуществующий authorId -> NOT_FOUND без записи", async () => {
+    (db.user.findUnique as MockFn).mockResolvedValue(null);
+    await expect(
+      caller("MANAGER", db).collection.importCsv({
+        collectionId: "c1",
+        csv: "title\nT",
+        authorId: "ghost",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(db.entry.create).not.toHaveBeenCalled();
+  });
+
+  it("P2002 в батче: построчный добор, прочие ошибки не глотаются", async () => {
+    const unique = Object.assign(new Error("unique"), { code: "P2002" });
     (db.entry.create as MockFn)
-      .mockResolvedValueOnce({ id: "e1" })
-      .mockRejectedValueOnce(new Error("conflict"));
+      .mockRejectedValueOnce(unique) // батч целиком
+      .mockResolvedValueOnce({ id: "e1" }) // A
+      .mockRejectedValueOnce(unique) // B
+      .mockResolvedValueOnce({ id: "e3" }); // C
 
     const out = await caller("MANAGER", db).collection.importCsv({
       collectionId: "c1",
       csv: "title,slug\nA,a\nB,b\nC,c",
     });
 
-    expect(out).toEqual({ imported: 2, skipped: 1, conflicts: 1 });
-    expect(db.entry.create).toHaveBeenCalledTimes(3);
+    expect(out).toEqual({ imported: 2, skipped: 0, conflicts: 1 });
+    expect(db.entry.create).toHaveBeenCalledTimes(4);
   });
 
   it("все строки без title: imported 0, skipped считает каждую", async () => {
@@ -242,11 +265,11 @@ describe("collection importCsv", () => {
     });
 
     expect(out).toEqual({ imported: 0, skipped: 2, conflicts: 0 });
-    expect(db.entry.createMany).not.toHaveBeenCalled();
+    expect(db.entry.create).not.toHaveBeenCalled();
   });
 
   it("не-P2002 ошибка не проглатывается", async () => {
-    (db.entry.createMany as MockFn).mockRejectedValue(new Error("disk full"));
+    (db.entry.create as MockFn).mockRejectedValue(new Error("disk full"));
     await expect(
       caller("MANAGER", db).collection.importCsv({ collectionId: "c1", csv: "title\nT" }),
     ).rejects.toThrow("disk full");

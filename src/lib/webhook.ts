@@ -11,12 +11,12 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_ATTEMPTS = 3;
 const DEFAULT_BACKOFF_MS = 200;
 
-// Флаг разрешён ТОЛЬКО тестовому харнессу (AUTH_RATELIMIT=off).
+// Флаг разрешён ТОЛЬКО явному тестовому харнессу (VERSO_TEST_HARNESS=1).
 // В проде с ним процесс обязан упасть, а не молча ходить по внутренней сети.
 if (
   process.env.NODE_ENV === "production" &&
   process.env.WEBHOOK_ALLOW_PRIVATE === "1" &&
-  process.env.AUTH_RATELIMIT !== "off" &&
+  process.env.VERSO_TEST_HARNESS !== "1" &&
   !process.env.NEXT_PHASE?.includes("build")
 ) {
   throw new Error("WEBHOOK_ALLOW_PRIVATE must never be enabled in production");

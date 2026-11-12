@@ -7,12 +7,21 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, editorProcedure } from "../trpc";
 import { userRouter } from "./user";
 
+const TaskStatus = z.enum(["TODO", "IN_PROGRESS", "DONE"]);
+const TaskPriority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
+
 const taskRouter = createTRPCRouter({
   list: protectedProcedure.query(({ ctx }) =>
     ctx.prisma.editorialTask.findMany({ orderBy: { dueDate: "asc" }, include: { entry: true } }),
   ),
   create: editorProcedure
-    .input(z.object({ title: z.string().min(1).max(300), description: z.string().max(5000).optional(), dueDate: z.string().optional(), entryId: z.string().optional(), priority: z.string().default("MEDIUM") }))
+    .input(z.object({
+      title: z.string().min(1).max(300),
+      description: z.string().max(5000).optional(),
+      dueDate: z.string().refine((v) => !Number.isNaN(Date.parse(v)), { message: "Некорректная дата" }).optional(),
+      entryId: z.string().optional(),
+      priority: TaskPriority.default("MEDIUM"),
+    }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.editorialTask.create({
         data: {
@@ -22,7 +31,7 @@ const taskRouter = createTRPCRouter({
         },
       }),
     ),
-  toggle: editorProcedure.input(z.object({ id: z.string(), status: z.string() })).mutation(({ ctx, input }) =>
+  toggle: editorProcedure.input(z.object({ id: z.string(), status: TaskStatus })).mutation(({ ctx, input }) =>
     ctx.prisma.editorialTask.update({ where: { id: input.id }, data: { status: input.status } }),
   ),
   // Удаление: автор задачи или привилегированная роль (ADMIN/MANAGER).

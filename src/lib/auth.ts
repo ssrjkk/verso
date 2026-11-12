@@ -3,18 +3,23 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { applySignupRolePolicy } from "./first-admin";
 
-// Fail fast: запуск в проде с дефолтным/демо-секретом = скомпрометированные сессии.
+// Fail fast: запуск в проде с дефолтным/демо/коротким секретом = скомпрометированные сессии.
 // NEXT_PHASE исключает фазу сборки (там секреты не нужны, только статический анализ роутов).
-// AUTH_RATELIMIT=off маркирует тестовый харнес (e2e на throwaway-БД) —
+// VERSO_TEST_HARNESS=1 — явная маркировка e2e на throwaway-БД (не переиспользуем
+// AUTH_RATELIMIT, чтобы отключение лимита не ослабляло проверку секрета).
 // НИКОГДА не выставлять в проде (см. .env.example).
-const isTestHarness = process.env.AUTH_RATELIMIT === "off" || process.env.NODE_ENV === "test";
+const isTestHarness =
+  process.env.VERSO_TEST_HARNESS === "1" || process.env.NODE_ENV === "test";
+const secret = process.env.BETTER_AUTH_SECRET;
 if (
   process.env.NODE_ENV === "production" &&
   !process.env.NEXT_PHASE?.includes("build") &&
   !isTestHarness &&
-  (!process.env.BETTER_AUTH_SECRET || /change-me|test|demo|secret123/i.test(process.env.BETTER_AUTH_SECRET))
+  (!secret || secret.length < 32 || /change-me|test|demo|secret123/i.test(secret))
 ) {
-  throw new Error("BETTER_AUTH_SECRET must be set to a strong random value in production");
+  throw new Error(
+    "BETTER_AUTH_SECRET must be a random value of at least 32 characters in production",
+  );
 }
 
 export const auth = betterAuth({

@@ -4,11 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
+import { demoCredentials } from "@/lib/demo-access";
+import { safeInternalPath } from "@/lib/safe-redirect";
+
+function nextTarget(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  return safeInternalPath(new URLSearchParams(window.location.search).get("next"));
+}
 
 export default function SignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@verso.dev");
-  const [password, setPassword] = useState("Test12345!");
+  const [email, setEmail] = useState(() => demoCredentials().email);
+  const [password, setPassword] = useState(() => demoCredentials().password);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +32,8 @@ export default function SignInPage() {
             if (res.error) {
               setErr(res.error.message ?? "Ошибка входа");
             } else {
-              router.push("/dashboard");
+              // proxy кладёт исходный путь в ?next=; открытый редирект отсекаем.
+              router.push(nextTarget());
               router.refresh();
             }
           } catch {

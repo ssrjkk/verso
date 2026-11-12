@@ -4,7 +4,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { validateUploadFile } from "@/lib/upload-validation";
+import {
+  MAX_BYTES,
+  MAX_REQUEST_BYTES,
+  validateUploadFile,
+} from "@/lib/upload-validation";
+import { removeManagedUpload } from "@/lib/media-files";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 // Загрузки — дорогая операция (диск + БД): 60/минуту на пользователя.
@@ -40,6 +45,15 @@ export async function POST(req: NextRequest) {
       headers: rateLimitHeaders(verdict.retryAfterMs),
     });
   }
+  // Отсекаем гигантский запрос до formData(): иначе 10 MB-лимит не спасает
+  // от чтения произвольного тела в память.
+  const contentLength = req.headers.get("content-length");
+  if (contentLength) {
+    const length = Number(contentLength);
+    if (Number.isFinite(length) && length > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: "Файл больше 10MB" }, { status: 413 });
+    }
+  }
   let form: FormData;
   try {
     form = await req.formData();
@@ -53,28 +67,43 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Поле file обязательно" }, { status: 400 });
   }
+  // Размер известен из метаданных File: не читаем тело, если он уже превышен.
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Файл больше 10MB" }, { status: 413 });
+  }
   // Байты читаем один раз: и для magic-check, и для записи на диск.
   const buf = Buffer.from(await file.arrayBuffer());
+  if (buf.byteLength > MAX_BYTES) {
+    return NextResponse.json({ error: "Файл больше 10MB" }, { status: 413 });
+  }
   const check = validateUploadFile(file, new Uint8Array(buf));
   if (!check.ok) {
     return NextResponse.json({ error: check.error }, { status: 400 });
   }
   const filename = `${randomUUID()}.${check.ext}`;
+  const url = `/uploads/${folder}/${filename}`;
   const dir = path.join(process.cwd(), "public", "uploads", folder);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, filename), buf);
 
-  const asset = await prisma.mediaAsset.create({
-    data: {
-      filename: file.name || filename,
-      url: `/uploads/${folder}/${filename}`,
-      mimeType: file.type,
-      sizeBytes: buf.byteLength,
-      width: null,
-      height: null,
-      altText,
-      folder,
-    },
-  });
-  return NextResponse.json({ asset }, { status: 201 });
+  try {
+    const asset = await prisma.mediaAsset.create({
+      data: {
+        filename: file.name || filename,
+        url,
+        mimeType: file.type,
+        sizeBytes: buf.byteLength,
+        width: null,
+        height: null,
+        altText,
+        folder,
+      },
+    });
+    return NextResponse.json({ asset }, { status: 201 });
+  } catch (e) {
+    // Файл уже на диске: без уборки он навсегда останется сиротой.
+    console.error("[upload] mediaAsset.create failed:", e);
+    await removeManagedUpload(url);
+    return NextResponse.json({ error: "Не удалось сохранить файл" }, { status: 500 });
+  }
 }

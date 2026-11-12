@@ -67,14 +67,17 @@ describe("entry.publish -> webhooks, без БД", () => {
   it("MANAGER: PUBLISHED, доставка на echo с X-Verso-Event и HMAC", async () => {
     const port = await echoServer();
     const prisma = {
+      $transaction: vi.fn(),
       entry: {
-        findUnique: vi.fn(async () => ({ id: "e1" })),
+        findUnique: vi.fn(async () => ({ id: "e1", status: "DRAFT" })),
         update: vi.fn(async (a: { data: Record<string, unknown> }) => ({
           id: "e1",
           title: "T",
           ...a.data,
         })),
       },
+      revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
+      activityLog: { create: vi.fn(async () => ({})) },
       webhookEndpoint: {
         findMany: vi.fn(async () => [
           {
@@ -97,6 +100,10 @@ describe("entry.publish -> webhooks, без БД", () => {
         update: vi.fn(async () => ({})),
       },
     };
+
+    (prisma.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => unknown) => fn(prisma),
+    );
 
     const out = await caller("MANAGER", prisma).entry.publish({ id: "e1" });
     expect(out.status).toBe("PUBLISHED");

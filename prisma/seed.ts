@@ -1,11 +1,16 @@
 import "dotenv/config";
+import { assertSeedAllowed, DEMO_ADMIN_EMAIL, DEMO_PASSWORD } from "../src/lib/demo-access";
 import { auth } from "../src/lib/auth";
 import { prisma } from "../src/lib/prisma";
 
+// Демо-сид создаёт пользователей с общеизвестным паролем. На проде это
+// захват админки, поэтому запуск требует осознанного SEED_ALLOW=1.
+assertSeedAllowed();
+
 const USERS = [
-  { name: "Test Admin", email: "admin@verso.dev", password: "Test12345!", role: "ADMIN" },
-  { name: "Editor", email: "editor@verso.dev", password: "Test12345!", role: "MANAGER" },
-  { name: "Viewer", email: "viewer@verso.dev", password: "Test12345!", role: "VIEWER" },
+  { name: "Test Admin", email: DEMO_ADMIN_EMAIL, password: DEMO_PASSWORD, role: "ADMIN" },
+  { name: "Editor", email: "editor@verso.dev", password: DEMO_PASSWORD, role: "MANAGER" },
+  { name: "Viewer", email: "viewer@verso.dev", password: DEMO_PASSWORD, role: "VIEWER" },
 ];
 
 const STAGES = [

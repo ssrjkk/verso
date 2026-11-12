@@ -4,6 +4,18 @@ import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure }
 import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
 import { mediaCreateIssue } from "@/lib/upload-validation";
 import { validateRedirect } from "@/lib/redirects";
+import { EntryStatus } from "@/lib/entry-status";
+import { removeManagedUpload } from "@/lib/media-files";
+
+const API_KEY_SAFE_SELECT = {
+  id: true,
+  name: true,
+  prefix: true,
+  scope: true,
+  lastUsedAt: true,
+  expiresAt: true,
+  createdAt: true,
+} as const;
 
 const WebhookUrl = z
   .string()
@@ -28,15 +40,21 @@ export const blockRouter = createTRPCRouter({
         propsJson: z.string().default("{}"),
       })),
     }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.pageBlock.deleteMany({ where: { entryId: input.entryId } });
-      await ctx.prisma.pageBlock.createMany({
-        data: input.blocks.map((b) => ({
-          entryId: input.entryId, type: b.type, order: b.order, isVisible: b.isVisible, propsJson: b.propsJson,
-        })),
-      });
-      return ctx.prisma.pageBlock.findMany({ where: { entryId: input.entryId }, orderBy: { order: "asc" } });
-    }),
+    .mutation(async ({ ctx, input }) =>
+      // delete + createMany + чтение — одна транзакция: сбой посередине
+      // не должен оставить запись без блоков.
+      ctx.prisma.$transaction(async (tx) => {
+        await tx.pageBlock.deleteMany({ where: { entryId: input.entryId } });
+        if (input.blocks.length) {
+          await tx.pageBlock.createMany({
+            data: input.blocks.map((b) => ({
+              entryId: input.entryId, type: b.type, order: b.order, isVisible: b.isVisible, propsJson: b.propsJson,
+            })),
+          });
+        }
+        return tx.pageBlock.findMany({ where: { entryId: input.entryId }, orderBy: { order: "asc" } });
+      }),
+    ),
   remove: editorProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>
     ctx.prisma.pageBlock.delete({ where: { id: input.id } }),
   ),
@@ -47,7 +65,7 @@ export const workflowRouter = createTRPCRouter({
     ctx.prisma.workflowStage.findMany({ orderBy: { order: "asc" }, include: { entries: { include: { collection: true } } } }),
   ),
   createStage: adminProcedure
-    .input(z.object({ name: z.string(), color: z.string().default("#f97316"), targetState: z.string().default("DRAFT") }))
+    .input(z.object({ name: z.string().min(1).max(200), color: z.string().default("#f97316"), targetState: EntryStatus.default("DRAFT") }))
     .mutation(async ({ ctx, input }) => {
       const count = await ctx.prisma.workflowStage.count();
       return ctx.prisma.workflowStage.create({ data: { ...input, order: count } });
@@ -93,18 +111,22 @@ export const mediaRouter = createTRPCRouter({
     }
     await ctx.prisma.mediaAsset.delete({ where: { id: input.id } });
     // Удаляем физический файл, чтобы не копились сироты в public/uploads.
-    try {
-      const { unlink } = await import("node:fs/promises");
-      const path = await import("node:path");
-      const root = path.join(process.cwd(), "public", "uploads") + path.sep;
-      const target = path.normalize(path.join(process.cwd(), "public", asset.url));
-      if (target.startsWith(root)) await unlink(target).catch(() => {});
-    } catch { /* best effort */ }
+    await removeManagedUpload(asset.url);
     return { ok: true };
   }),
   deleteMany: adminProcedure
     .input(z.object({ ids: z.array(z.string()).min(1) }))
-    .mutation(({ ctx, input }) => ctx.prisma.mediaAsset.deleteMany({ where: { id: { in: input.ids } } })),
+    .mutation(async ({ ctx, input }) => {
+      // Сначала читаем URL, потом удаляем строки: после deleteMany узнать
+      // пути уже неоткуда, и файлы остались бы навсегда.
+      const assets = await ctx.prisma.mediaAsset.findMany({
+        where: { id: { in: input.ids } },
+        select: { url: true },
+      });
+      const result = await ctx.prisma.mediaAsset.deleteMany({ where: { id: { in: input.ids } } });
+      await Promise.all(assets.map((asset) => removeManagedUpload(asset.url)));
+      return result;
+    }),
   stats: protectedProcedure.query(async ({ ctx }) => {
     const assets = await ctx.prisma.mediaAsset.findMany({ select: { mimeType: true, sizeBytes: true } });
     const total = assets.length;
@@ -160,14 +182,21 @@ export const seoRouter = createTRPCRouter({
 });
 
 export const apiKeyRouter = createTRPCRouter({
+  // keyHash не покидает сервер даже для ADMIN: клиенту достаточно метаданных.
   list: adminProcedure.query(({ ctx }) =>
-    ctx.prisma.apiKey.findMany({ orderBy: { createdAt: "desc" } }),
+    ctx.prisma.apiKey.findMany({
+      orderBy: { createdAt: "desc" },
+      select: API_KEY_SAFE_SELECT,
+    }),
   ),
   create: adminProcedure
     .input(z.object({
-      name: z.string(),
+      name: z.string().min(1).max(200),
       scope: z.enum(["READ", "READ_WRITE"]).default("READ"),
-      expiresAt: z.string().optional(),
+      expiresAt: z
+        .string()
+        .refine((v) => !Number.isNaN(Date.parse(v)), { message: "Некорректная дата" })
+        .optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const crypto = await import("node:crypto");
@@ -181,7 +210,9 @@ export const apiKeyRouter = createTRPCRouter({
           scope: input.scope,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
         },
+        select: API_KEY_SAFE_SELECT,
       });
+      // raw показывается ровно один раз; в БД лежит только sha256-хэш.
       return { ...created, raw };
     }),
   revoke: adminProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>

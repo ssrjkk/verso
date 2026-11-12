@@ -5,6 +5,12 @@
 // расширение и MIME подделываются одной строкой.
 export const MAX_BYTES = 10 * 1024 * 1024;
 
+// Content-Length включает multipart-обвязку (boundary, заголовки частей).
+// Запас 64 KiB позволяет отсечь гигантский запрос до чтения тела, не
+// отвергая легальный файл ровно на 10 MB.
+export const MAX_MULTIPART_OVERHEAD = 64 * 1024;
+export const MAX_REQUEST_BYTES = MAX_BYTES + MAX_MULTIPART_OVERHEAD;
+
 // Разрешённые пары расширение -> точный mime. SVG/HTML/JS запрещены
 // осознанно: image/svg+xml исполняет скрипты в origin CMS (stored XSS).
 const ALLOWED: Record<string, string> = {

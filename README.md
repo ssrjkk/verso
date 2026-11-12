@@ -69,13 +69,15 @@ npm run dev         # http://localhost:3000
 | Переменная | Назначение |
 |---|---|
 | `DATABASE_URL` | SQLite, по умолчанию `file:./prisma/dev.db` |
-| `BETTER_AUTH_SECRET` | Секрет auth (в проде — стойкий, `openssl rand -base64 32`) |
+| `BETTER_AUTH_SECRET` | Секрет auth: в проде обязателен, ≥32 символов, без `change-me`/`test`/`demo` (`openssl rand -base64 32`) |
 | `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` | Базовые URL приложения |
 | `TRUSTED_ORIGINS` | Доп. origin через запятую (опционально) |
 | `CRON_SECRET` | Bearer-секрет для `POST /api/cron/publish-due` (без него маршрут отдаёт **503**) |
 | `PUBLISH_DUE_TICK_MS` | Интервал самопубликации, мс (опционально; по умолчанию выключен) |
-| `AUTH_RATELIMIT=off` | **Только e2e/throwaway-БД:** отключает rate-limit и проверку стойкости секрета |
-| `WEBHOOK_ALLOW_PRIVATE=1` | **Только e2e** (требует `AUTH_RATELIMIT=off`); в прод-конфигурации — fail-fast |
+| `AUTH_RATELIMIT=off` | **Только e2e/throwaway-БД:** отключает rate-limit входов (проверку секрета не ослабляет) |
+| `VERSO_TEST_HARNESS=1` | **Только e2e/throwaway-БД:** разрешает короткий/демо-секрет и `WEBHOOK_ALLOW_PRIVATE`; в проде небезопасен |
+| `WEBHOOK_ALLOW_PRIVATE=1` | **Только e2e** (требует `VERSO_TEST_HARNESS=1`); в прод-конфигурации — fail-fast |
+| `SEED_ALLOW=1` | **Только throwaway-инстанс:** разрешает `npm run db:seed` с демо-паролем на production |
 
 ## API / интеграции
 
@@ -98,13 +100,13 @@ npm run dev         # http://localhost:3000
 | `npm run test:e2e` | Playwright (e2e, свой `e2e.db`, fresh-build guard) |
 | `npm run test:all` | **Полный гейт:** typecheck + vitest + build + e2e (как в CI) |
 | `npm run db:push` | Синхронизация схемы Prisma |
-| `npm run db:seed` | Сид демо-данных (с `prisma generate` в pre-hook) |
+| `npm run db:seed` | Сид демо-данных (с `prisma generate` в pre-hook; на production требует `SEED_ALLOW=1`) |
 | `npm run db:studio` | Prisma Studio |
 
 ## Тестирование и CI
 
-- **Vitest:** 22 файла / 243 теста (в т.ч. интеграции на реальном SQLite, SSRF/redirect/scheduler/auth/upload контракты).
-- **Playwright:** 40 e2e-спеков / 81 тест, включая axe-проверки доступности и визуальные/overflow сценарии.
+- **Vitest:** 52 файла / 559 тестов (в т.ч. интеграции на реальном SQLite, SSRF/redirect/scheduler/auth/upload контракты).
+- **Playwright:** 39 e2e-файлов / 83 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
 - **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`.  
   Локально воспроизводится тем же `npm run test:all`.
 
@@ -125,7 +127,7 @@ docs/DECISIONS.md      # ADR-журнал
 
 ## Решения и компромиссы
 
-Архитектурные решения зафиксированы в [`docs/DECISIONS.md`](docs/DECISIONS.md): для каждого пункта — **проблема → решение → почему → цена** (роли/bootstrap, вебхуки/SSRF, редиректы, планировщик, headless-лимиты, загрузки/magic bytes, a11y/контраст, воспроизводимая установка).
+Архитектурные решения зафиксированы в [`docs/DECISIONS.md`](docs/DECISIONS.md): для каждого пункта — **проблема → решение → почему → цена** (роли/bootstrap, вебхуки/SSRF, редиректы, планировщик, headless-лимиты, загрузки/magic bytes, a11y/контраст, воспроизводимая установка, демо-доступы и инварианты публикации).
 
 ## Лицензия
 

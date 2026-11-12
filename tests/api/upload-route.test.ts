@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 const authMock = vi.hoisted(() => ({ getSession: vi.fn() }));
 const db = vi.hoisted(() => ({ mediaAsset: { create: vi.fn() } }));
 const fsMock = vi.hoisted(() => ({ mkdir: vi.fn(), writeFile: vi.fn() }));
+const mediaFiles = vi.hoisted(() => ({ removeManagedUpload: vi.fn() }));
 const limiter = vi.hoisted(() => ({
   checkRateLimit: vi.fn(),
   rateLimitHeaders: vi.fn(),
@@ -12,6 +13,7 @@ const limiter = vi.hoisted(() => ({
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: authMock.getSession } } }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("node:fs/promises", () => fsMock);
+vi.mock("@/lib/media-files", () => mediaFiles);
 vi.mock("@/lib/rate-limit", () => limiter);
 
 import { POST } from "@/app/api/upload/route";
@@ -88,6 +90,25 @@ describe("POST /api/upload", () => {
     expect(limiter.checkRateLimit).toHaveBeenCalledWith("upload:ip:203.0.113.5", expect.any(Object));
   });
 
+  it("слишком большой Content-Length -> 413 без чтения тела", async () => {
+    const req = fakeReq(formWith({ file: file() }), {
+      "content-length": String(11 * 1024 * 1024),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "Файл больше 10MB" });
+    expect(req.formData).not.toHaveBeenCalled();
+    expect(fsMock.writeFile).not.toHaveBeenCalled();
+  });
+
+  it("File.size больше лимита -> 413 до arrayBuffer", async () => {
+    const big = file();
+    Object.defineProperty(big, "size", { value: 10 * 1024 * 1024 + 1 });
+    const res = await POST(fakeReq(formWith({ file: big })));
+    expect(res.status).toBe(413);
+    expect(fsMock.writeFile).not.toHaveBeenCalled();
+  });
+
   it("не multipart -> 400", async () => {
     const res = await POST(fakeReq(null));
     expect(res.status).toBe(400);
@@ -143,6 +164,22 @@ describe("POST /api/upload", () => {
     expect(written[0]).toContain("blog");
     expect(written[0].endsWith(".png")).toBe(true);
     expect(Buffer.compare(written[1], Buffer.from(PNG))).toBe(0);
+    expect(mediaFiles.removeManagedUpload).not.toHaveBeenCalled();
+  });
+
+  it("ошибка записи в БД -> 500 и удаление orphan-файла", async () => {
+    db.mediaAsset.create.mockRejectedValue(new Error("db down"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const res = await POST(fakeReq(formWith({ file: file() })));
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ error: "Не удалось сохранить файл" });
+      expect(mediaFiles.removeManagedUpload).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/uploads\/root\/[0-9a-f-]{36}\.png$/),
+      );
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("папка по умолчанию root, altText по умолчанию пустой", async () => {

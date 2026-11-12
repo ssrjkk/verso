@@ -7,6 +7,9 @@ const db = vi.hoisted(() => ({
   entry: { findMany: vi.fn(), create: vi.fn() },
   collection: { findUnique: vi.fn() },
   user: { findFirst: vi.fn() },
+  revision: { create: vi.fn() },
+  activityLog: { create: vi.fn() },
+  $transaction: vi.fn(),
 }));
 
 const limiter = vi.hoisted(() => ({
@@ -66,6 +69,9 @@ beforeEach(() => {
   }));
   db.collection.findUnique.mockResolvedValue({ id: "c1", slug: "posts" });
   db.user.findFirst.mockResolvedValue({ id: "admin1" });
+  db.revision.create.mockResolvedValue({});
+  db.activityLog.create.mockResolvedValue({});
+  db.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(db));
 });
 
 describe("GET /api/v1/:collection", () => {
@@ -206,8 +212,20 @@ describe("POST /api/v1/:collection", () => {
         title: "Привет мир",
         slug: "hello-world",
         excerpt: "E",
+        fieldsJson: undefined,
         authorId: "admin1",
       },
+    });
+    expect(db.revision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entryId: "e1",
+        version: 1,
+        changeNote: "Создание через Headless API",
+        authorId: "admin1",
+      }),
+    });
+    expect(db.activityLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ entryId: "e1", action: "CREATED", userId: "admin1" }),
     });
   });
 
@@ -230,12 +248,30 @@ describe("POST /api/v1/:collection", () => {
     );
   });
 
-  it("конфликт slug -> 409", async () => {
+  it("конфликт slug (P2002) -> 409", async () => {
     db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
-    db.entry.create.mockRejectedValue(new Error("Unique constraint"));
+    db.entry.create.mockRejectedValue(Object.assign(new Error("Unique constraint"), { code: "P2002" }));
     const res = await POST(postReq(JSON.stringify({ title: "T" }), { "x-api-key": RAW_KEY }), params());
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "Slug already exists in collection" });
+  });
+
+  it("прочая ошибка БД -> 500, а не ложный 409", async () => {
+    db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
+    db.entry.create.mockRejectedValue(new Error("disk full"));
+    const res = await POST(postReq(JSON.stringify({ title: "T" }), { "x-api-key": RAW_KEY }), params());
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Failed to create entry" });
+  });
+
+  it("title длиннее 300 -> 400 до записи", async () => {
+    db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
+    const res = await POST(
+      postReq(JSON.stringify({ title: "x".repeat(301) }), { "x-api-key": RAW_KEY }),
+      params(),
+    );
+    expect(res.status).toBe(400);
+    expect(db.entry.create).not.toHaveBeenCalled();
   });
 
   it("истёкший ключ -> 403 до проверки scope", async () => {

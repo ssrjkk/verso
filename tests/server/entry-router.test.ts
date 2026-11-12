@@ -175,9 +175,11 @@ describe("entry.create", () => {
     expect(out).toMatchObject({ slug: "same-2" });
     expect(db.entry.findUnique).toHaveBeenNthCalledWith(1, {
       where: { collectionId_slug: { collectionId: "c1", slug: "same" } },
+      select: { id: true },
     });
     expect(db.entry.findUnique).toHaveBeenNthCalledWith(2, {
       where: { collectionId_slug: { collectionId: "c1", slug: "same-2" } },
+      select: { id: true },
     });
   });
 
@@ -275,7 +277,7 @@ describe("entry.update", () => {
     expect(db.entry.update).toHaveBeenCalledWith({
       where: { id: "e1" },
       data: { title: "T", scheduledFor: new Date(scheduledFor) },
-      include: { blocks: true },
+      include: { blocks: true, tags: { include: { tag: true } } },
     });
     expect(db.revision.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ version: 5, changeNote: "План" }),
@@ -291,12 +293,43 @@ describe("entry.update", () => {
     );
   });
 
-  it("PUBLISHED -> entry.published", async () => {
+  it("PUBLISHED -> entry.published и publishedAt", async () => {
     (db.entry.update as MockFn).mockResolvedValue({ id: "e1", status: "PUBLISHED" });
     await caller("MANAGER", db).entry.update({ id: "e1", status: "PUBLISHED" });
+    expect(db.entry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "PUBLISHED", publishedAt: expect.any(Date) },
+      }),
+    );
     expect(hooks.fireWebhooks).toHaveBeenCalledWith(
       db,
       "entry.published",
+      expect.objectContaining({ status: "PUBLISHED" }),
+    );
+  });
+
+  it("уже опубликованная запись при правке не двигает publishedAt и шлёт entry.updated", async () => {
+    (db.entry.findUnique as MockFn).mockResolvedValue({
+      ...current,
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    (db.entry.update as MockFn).mockResolvedValue({ id: "e1", status: "PUBLISHED" });
+
+    await caller("MANAGER", db).entry.update({ id: "e1", title: "T", status: "PUBLISHED" });
+
+    expect(db.entry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          title: "T",
+          status: "PUBLISHED",
+          publishedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+      }),
+    );
+    expect(hooks.fireWebhooks).toHaveBeenCalledWith(
+      db,
+      "entry.updated",
       expect.objectContaining({ status: "PUBLISHED" }),
     );
   });
@@ -354,6 +387,28 @@ describe("entry.moveStage", () => {
     });
     expect(hooks.fireWebhooks).not.toHaveBeenCalled();
   });
+
+  it("повторный переход в PUBLISHED не двигает дату и не дублирует вебхук", async () => {
+    const publishedAt = new Date("2026-01-01T00:00:00.000Z");
+    (db.workflowStage.findUnique as MockFn).mockResolvedValue({
+      id: "s1",
+      name: "Публикация",
+      targetState: "PUBLISHED",
+    });
+    (db.entry.findUnique as MockFn).mockResolvedValue({
+      id: "e1",
+      status: "PUBLISHED",
+      publishedAt,
+    });
+
+    await caller("MANAGER", db).entry.moveStage({ entryId: "e1", stageId: "s1" });
+
+    expect(db.entry.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { stageId: "s1", status: "PUBLISHED", publishedAt: undefined },
+    });
+    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+  });
 });
 
 describe("entry.restoreRevision", () => {
@@ -385,6 +440,10 @@ describe("entry.restoreRevision", () => {
       version: 3,
     });
     (db.revision.count as MockFn).mockResolvedValue(5);
+    (db.entry.findUnique as MockFn).mockImplementation(
+      async (args: { where: { id?: string } }) =>
+        args.where.id ? { collectionId: "c1", slug: "old" } : null,
+    );
 
     await caller("MANAGER", db).entry.restoreRevision({ entryId: "e1", revisionId: "r1" });
 
@@ -394,7 +453,7 @@ describe("entry.restoreRevision", () => {
     });
     expect(db.pageBlock.deleteMany).toHaveBeenCalledWith({ where: { entryId: "e1" } });
     expect(db.pageBlock.createMany).toHaveBeenCalledWith({
-      data: [{ entryId: "e1", type: "HERO", order: 0, propsJson: "{}" }],
+      data: [{ entryId: "e1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" }],
     });
     expect(db.revision.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ version: 6, changeNote: "Откат к v3" }),
@@ -412,14 +471,46 @@ describe("entry.publish/remove", () => {
     });
   });
 
-  it("publish: статус, publishedAt и вебхук", async () => {
-    (db.entry.findUnique as MockFn).mockResolvedValue({ id: "e1" });
+  it("publish: статус, publishedAt, ревизия, activity и вебхук", async () => {
+    (db.entry.findUnique as MockFn).mockResolvedValue({ id: "e1", status: "DRAFT" });
+    (db.revision.count as MockFn).mockResolvedValue(2);
     await caller("MANAGER", db).entry.publish({ id: "e1" });
     expect(db.entry.update).toHaveBeenCalledWith({
       where: { id: "e1" },
       data: { status: "PUBLISHED", publishedAt: expect.any(Date) },
+      include: { blocks: true, tags: { include: { tag: true } } },
+    });
+    expect(db.revision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entryId: "e1",
+        version: 3,
+        changeNote: "Публикация",
+        authorId: "u-MANAGER",
+      }),
+    });
+    expect(db.activityLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: "PUBLISHED" }),
     });
     expect(hooks.fireWebhooks).toHaveBeenCalledWith(db, "entry.published", expect.anything());
+  });
+
+  it("publish идемпотентен: PUBLISHED не даёт второй ревизии/вебхука", async () => {
+    const publishedAt = new Date("2025-12-31T00:00:00.000Z");
+    (db.entry.findUnique as MockFn).mockResolvedValue({
+      id: "e1",
+      status: "PUBLISHED",
+      publishedAt,
+      blocks: [],
+      tags: [],
+    });
+
+    const out = await caller("MANAGER", db).entry.publish({ id: "e1" });
+
+    expect(out).toMatchObject({ id: "e1", status: "PUBLISHED", publishedAt });
+    expect(db.entry.update).not.toHaveBeenCalled();
+    expect(db.revision.create).not.toHaveBeenCalled();
+    expect(db.activityLog.create).not.toHaveBeenCalled();
+    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
   });
 
   it("remove: удаляет запись", async () => {
@@ -439,6 +530,7 @@ describe("entry.setTags", () => {
       tags: ["  a  ", "a", "", "b", ...names],
     });
 
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(db.tag.upsert).toHaveBeenCalledTimes(20);
     expect(db.entryTag.deleteMany).toHaveBeenCalledWith({ where: { entryId: "e1" } });
     expect(db.entryTag.createMany).toHaveBeenCalledWith({

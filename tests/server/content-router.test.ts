@@ -41,7 +41,16 @@ function makeDb() {
     },
     apiKey: {
       findMany: vi.fn(async () => []),
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "k1", ...data })),
+      // Моделируем select без keyHash: именно это возвращает Prisma.
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "k1",
+        name: data.name,
+        prefix: data.prefix,
+        scope: data.scope,
+        lastUsedAt: null,
+        expiresAt: data.expiresAt ?? null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      })),
       delete: vi.fn(async () => ({ id: "k1" })),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "k1", ...data })),
     },
@@ -79,6 +88,7 @@ describe("block router", () => {
     });
 
     expect(out).toEqual([]);
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(db.pageBlock.deleteMany).toHaveBeenCalledWith({ where: { entryId: "e1" } });
     expect(db.pageBlock.createMany).toHaveBeenCalledWith({
       data: [{ entryId: "e1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" }],
@@ -108,6 +118,13 @@ describe("workflow router", () => {
     (db.workflowStage.count as MockFn).mockResolvedValue(3);
     const out = await caller("ADMIN", db).workflow.createStage({ name: "Новый" });
     expect(out).toMatchObject({ name: "Новый", order: 3, color: "#f97316", targetState: "DRAFT" });
+  });
+
+  it("createStage: неизвестный targetState отклоняется до записи", async () => {
+    await expect(
+      caller("ADMIN", db).workflow.createStage({ name: "Мусор", targetState: "DELETED" as never }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.workflowStage.create).not.toHaveBeenCalled();
   });
 });
 
@@ -233,9 +250,20 @@ describe("seo router", () => {
 });
 
 describe("apiKey router", () => {
-  it("list: новые сверху", async () => {
+  it("list: новые сверху, без keyHash в выборке", async () => {
     await caller("ADMIN", db).apiKey.list();
-    expect(db.apiKey.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+    expect(db.apiKey.findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        prefix: true,
+        scope: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+    });
   });
 
   it("create: vrs_live_, sha256-хэш, scope и expiry", async () => {
@@ -247,6 +275,7 @@ describe("apiKey router", () => {
     })) as { raw: string };
 
     expect(out.raw).toMatch(/^vrs_live_[0-9a-f]{48}$/);
+    expect(out).not.toHaveProperty("keyHash");
     expect(db.apiKey.create).toHaveBeenCalledWith({
       data: {
         name: "CI",
@@ -255,6 +284,7 @@ describe("apiKey router", () => {
         scope: "READ_WRITE",
         expiresAt: new Date(expiresAt),
       },
+      select: expect.objectContaining({ id: true, name: true, scope: true }),
     });
   });
 
@@ -268,7 +298,15 @@ describe("apiKey router", () => {
         scope: "READ",
         expiresAt: undefined,
       },
+      select: expect.objectContaining({ id: true, name: true, scope: true }),
     });
+  });
+
+  it("create: кривой expiresAt -> BAD_REQUEST без записи", async () => {
+    await expect(
+      caller("ADMIN", db).apiKey.create({ name: "Bad", expiresAt: "not-a-date" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.apiKey.create).not.toHaveBeenCalled();
   });
 
   it("revoke/updateExpiry", async () => {

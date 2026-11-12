@@ -47,6 +47,8 @@ if (!buildFresh) {
   console.log("[webServer] build is fresh, skipping rebuild");
 }
 process.env.DATABASE_URL = "file:./prisma/e2e.db";
+process.env.VERSO_TEST_HARNESS ??= "1";
+process.env.SEED_ALLOW ??= "1";
 process.env.BETTER_AUTH_SECRET ??= "e2e-test-secret-32-chars-minimum!!";
 process.env.BETTER_AUTH_URL ??= "http://localhost:3100";
 process.env.NEXT_PUBLIC_APP_URL ??= "http://localhost:3100";

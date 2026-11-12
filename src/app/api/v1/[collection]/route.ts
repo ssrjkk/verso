@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "node:crypto";
 import { slugify } from "@/lib/slug";
+import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+
+const CreateBody = z.object({
+  title: z.string().trim().min(1).max(300),
+  slug: z.string().max(150).optional(),
+  excerpt: z.string().max(5000).optional(),
+  fieldsJson: z.string().max(200_000).optional(),
+});
 
 // Лимиты Headless API: 240 запросов/минуту на IP. Щедро для интеграций и
 // e2e, но режет флуд и перебор ключей (fail-closed 429, не тихий дроп).
@@ -91,31 +100,73 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ col
   const col = await prisma.collection.findUnique({ where: { slug } });
   if (!col) return NextResponse.json({ error: "Collection not found" }, { status: 404 });
 
-  let body: { title?: string; slug?: string; excerpt?: string } = {};
+  let raw: unknown;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (!body.title) return NextResponse.json({ error: "title is required" }, { status: 400 });
+  if (
+    !raw ||
+    typeof raw !== "object" ||
+    typeof (raw as { title?: unknown }).title !== "string" ||
+    !(raw as { title: string }).title.trim()
+  ) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
+  }
+  const parsed = CreateBody.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid body" },
+      { status: 400 },
+    );
+  }
+  const body = parsed.data;
 
   // Минимальный автор: первый ADMIN, иначе любой пользователь
   const author = await prisma.user.findFirst({ where: { role: "ADMIN" } }) ?? await prisma.user.findFirst();
   if (!author) return NextResponse.json({ error: "No users in system" }, { status: 500 });
 
-  const finalSlug = body.slug ? slugify(body.slug) : slugify(body.title);
+  const finalSlug = slugify(body.slug || body.title) || "entry";
   try {
-    const entry = await prisma.entry.create({
-      data: {
-        collectionId: col.id,
-        title: body.title,
-        slug: finalSlug,
-        excerpt: body.excerpt,
-        authorId: author.id,
-      },
+    // API-запись проходит те же инварианты, что и создание в CMS:
+    // ревизия v1 + activity в одной транзакции.
+    const entry = await prisma.$transaction(async (tx) => {
+      const created = await tx.entry.create({
+        data: {
+          collectionId: col.id,
+          title: body.title,
+          slug: finalSlug,
+          excerpt: body.excerpt,
+          fieldsJson: body.fieldsJson,
+          authorId: author.id,
+        },
+      });
+      await tx.revision.create({
+        data: {
+          entryId: created.id,
+          version: 1,
+          snapshotJson: buildEntrySnapshot(created),
+          changeNote: "Создание через Headless API",
+          authorId: author.id,
+        },
+      });
+      await tx.activityLog.create({
+        data: {
+          entryId: created.id,
+          userId: author.id,
+          action: "CREATED",
+          comment: "Создана через Headless API",
+        },
+      });
+      return created;
     });
     return NextResponse.json({ data: entry }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Slug already exists in collection" }, { status: 409 });
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") {
+      return NextResponse.json({ error: "Slug already exists in collection" }, { status: 409 });
+    }
+    console.error("[api/v1] entry.create failed:", e);
+    return NextResponse.json({ error: "Failed to create entry" }, { status: 500 });
   }
 }

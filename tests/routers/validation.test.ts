@@ -115,15 +115,17 @@ describe("input validation contracts", () => {
   });
 
   it("entry.publish/moveStage несуществующей записи -> NOT_FOUND", async () => {
+    const entry = { findUnique: vi.fn(async () => null), update: vi.fn() };
     const prisma = {
-      entry: { findUnique: vi.fn(async () => null), update: vi.fn() },
+      entry,
       workflowStage: { findUnique: vi.fn(async () => ({ id: "s1", targetState: "DRAFT" })) },
       webhookEndpoint: { findMany: vi.fn(async () => []) },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ entry })),
     };
     const c = caller("MANAGER", prisma);
     await expect(c.entry.publish({ id: "nope" })).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(c.entry.moveStage({ entryId: "nope", stageId: "s1" })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(prisma.entry.update).not.toHaveBeenCalled();
+    expect(entry.update).not.toHaveBeenCalled();
   });
 
   it("entry.list: дефолт 200, >1000 отклоняется валидацией", async () => {
@@ -175,11 +177,18 @@ describe("input validation contracts", () => {
   });
 
   it("importCsv: дубли slug внутри файла -> imported 1, skipped 1", async () => {
+    const entry = {
+      findMany: vi.fn(async () => []),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "e1", ...data })),
+    };
+    const tx = {
+      entry,
+      revision: { create: vi.fn(async () => ({})) },
+      activityLog: { create: vi.fn(async () => ({})) },
+    };
     const prisma = {
-      entry: {
-        findMany: vi.fn(async () => []),
-        createMany: vi.fn(async () => ({ count: 1 })),
-      },
+      entry,
+      $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
     };
     const out = (await caller("MANAGER", prisma).collection.importCsv({
       collectionId: "c1",
@@ -187,5 +196,8 @@ describe("input validation contracts", () => {
     })) as unknown as { imported: number; skipped: number };
     expect(out.imported).toBe(1);
     expect(out.skipped).toBe(1);
+    expect(entry.create).toHaveBeenCalledTimes(1);
+    expect(tx.revision.create).toHaveBeenCalledTimes(1);
+    expect(tx.activityLog.create).toHaveBeenCalledTimes(1);
   });
 });
