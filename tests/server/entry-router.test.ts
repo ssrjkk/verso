@@ -264,6 +264,13 @@ describe("entry.update", () => {
     expect(db.entry.update).toHaveBeenCalled();
   });
 
+  it("scheduledFor: null явно снимает расписание", async () => {
+    await caller("MANAGER", db).entry.update({ id: "e1", scheduledFor: null });
+    expect(db.entry.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { scheduledFor: null } }),
+    );
+  });
+
   it("scheduledFor парсится, changeNote и version count+1", async () => {
     (db.revision.count as MockFn).mockResolvedValue(4);
     const scheduledFor = "2027-02-03T04:05:06.000Z";
@@ -536,13 +543,37 @@ describe("entry.setTags", () => {
     expect(db.entryTag.createMany).toHaveBeenCalledWith({
       data: Array.from({ length: 20 }, (_, i) => ({ entryId: "e1", tagId: `t${i}` })),
     });
+    // Изменение набора тегов попадает в историю и вебхуки.
+    expect(db.revision.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        entryId: "e1",
+        changeNote: "Изменение тегов",
+        authorId: "u-MANAGER",
+      }),
+    });
+    expect(db.activityLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ entryId: "e1", action: "TAGS_CHANGED" }),
+    });
+    expect(hooks.fireWebhooks).toHaveBeenCalledWith(db, "entry.updated", expect.anything());
   });
 
-  it("пустой список: только удаляет связи, без createMany", async () => {
+  it("пустой список: только удаляет связи, без createMany и без ревизии", async () => {
+    (db.entry.findUnique as MockFn).mockResolvedValue({ id: "e1", tags: [] });
     await caller("MANAGER", db).entry.setTags({ entryId: "e1", tags: [" ", ""] });
     expect(db.tag.upsert).not.toHaveBeenCalled();
     expect(db.entryTag.deleteMany).toHaveBeenCalledWith({ where: { entryId: "e1" } });
     expect(db.entryTag.createMany).not.toHaveBeenCalled();
+    // Набор не изменился — не плодим ревизию и не дублируем entry.updated.
+    expect(db.revision.create).not.toHaveBeenCalled();
+    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+  });
+
+  it("несуществующая запись -> NOT_FOUND до записи тегов", async () => {
+    await expect(
+      caller("MANAGER", db).entry.setTags({ entryId: "nope", tags: ["a"] }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(db.tag.upsert).not.toHaveBeenCalled();
+    expect(db.entryTag.deleteMany).not.toHaveBeenCalled();
   });
 });
 

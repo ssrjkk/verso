@@ -151,7 +151,12 @@ export const entryRouter = createTRPCRouter({
         fieldsJson: z.string().max(200_000).optional(),
         seoTitle: z.string().max(200).optional(),
         seoDescription: z.string().max(500).optional(),
-        scheduledFor: z.string().refine((v) => !Number.isNaN(Date.parse(v)), { message: "Некорректная дата" }).optional(),
+        // null — явное снятие расписания; undefined — «не трогать».
+        scheduledFor: z
+          .string()
+          .refine((v) => !Number.isNaN(Date.parse(v)), { message: "Некорректная дата" })
+          .nullable()
+          .optional(),
         changeNote: z.string().max(1000).optional(),
         // Оптимистичная блокировка: UI присылает updatedAt прочитанной версии.
         // Расхождение = кто-то сохранился раньше -> CONFLICT вместо тихой потери правок.
@@ -193,7 +198,9 @@ export const entryRouter = createTRPCRouter({
             id,
           );
         }
-        if (scheduledFor) data.scheduledFor = new Date(scheduledFor);
+        if (scheduledFor !== undefined) {
+          data.scheduledFor = scheduledFor === null ? null : new Date(scheduledFor);
+        }
         // Публикация через update — тот же инвариант, что и entry.publish:
         // у PUBLISHED всегда есть publishedAt; повторное сохранение дату не сдвигает.
         if (rest.status === "PUBLISHED") {
@@ -433,8 +440,21 @@ export const entryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const names = [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))].slice(0, 20);
       // Upsert тегов + пересоздание связей — атомарно: сбой посередине
-      // не оставит запись с частичным набором тегов.
-      return ctx.prisma.$transaction(async (tx) => {
+      // не оставит запись с частичным набором тегов. Ревизия/activity/webhook
+      // создаются только при фактическом изменении набора: EntryForm вызывает
+      // setTags после каждого сохранения, и «пустой» вызов не должен плодить
+      // шум в истории и дублировать entry.updated.
+      const result = await ctx.prisma.$transaction(async (tx) => {
+        const current = await tx.entry.findUnique({
+          where: { id: input.entryId },
+          include: { tags: { include: { tag: true } } },
+        });
+        if (!current) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+        const before = new Set(
+          (current.tags ?? []).flatMap((t) => (t.tag?.name ? [t.tag.name] : [])),
+        );
+        const changed = before.size !== names.length || names.some((name) => !before.has(name));
+
         for (const name of names) {
           await tx.tag.upsert({ where: { name }, create: { name }, update: {} });
         }
@@ -445,11 +465,43 @@ export const entryRouter = createTRPCRouter({
             data: tags.map((t) => ({ entryId: input.entryId, tagId: t.id })),
           });
         }
-        return tx.entry.findUnique({
+        const updated = await tx.entry.findUnique({
           where: { id: input.entryId },
-          include: { tags: { include: { tag: true } } },
+          include: {
+            blocks: { orderBy: { order: "asc" } },
+            tags: { include: { tag: true } },
+          },
         });
+        if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+
+        if (changed) {
+          const count = await tx.revision.count({ where: { entryId: input.entryId } });
+          await tx.revision.create({
+            data: {
+              entryId: input.entryId,
+              version: count + 1,
+              snapshotJson: buildEntrySnapshot(
+                updated,
+                updated.blocks ?? [],
+                (updated.tags ?? []).flatMap((t) => (t.tag?.name ? [t.tag.name] : [])),
+              ),
+              changeNote: "Изменение тегов",
+              authorId: ctx.user.id,
+            },
+          });
+          await tx.activityLog.create({
+            data: {
+              entryId: input.entryId,
+              userId: ctx.user.id,
+              action: "TAGS_CHANGED",
+              comment: names.length ? names.join(", ") : "Теги очищены",
+            },
+          });
+        }
+        return { updated, changed };
       });
+      if (result.changed) fireWebhooks(ctx.prisma, "entry.updated", result.updated);
+      return result.updated;
     }),
 
   // Лента активности записи (последние 50 событий).

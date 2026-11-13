@@ -133,6 +133,11 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
       authorId,
       collectionId,
     });
+    await prisma.pageBlock.create({
+      data: { entryId: id, type: "HERO", order: 0, propsJson: '{"title":"Hi"}' },
+    });
+    const tag = await prisma.tag.create({ data: { name: `tag-${id}` } });
+    await prisma.entryTag.create({ data: { entryId: id, tagId: tag.id } });
 
     const published = await publishDue(prisma, now);
     expect(published).toEqual([id]);
@@ -143,8 +148,26 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
 
     expect(await prisma.revision.count({ where: { entryId: id } })).toBe(1);
 
+    // Снапшот — общий формат buildEntrySnapshot: скаляры без relations,
+    // блоки и теги рядом. Иначе откат теряет теги, а блоки дублируются.
+    const revision = await prisma.revision.findFirst({ where: { entryId: id } });
+    const snapshot = JSON.parse(revision!.snapshotJson) as {
+      entry: Record<string, unknown>;
+      blocks: unknown[];
+      tags?: string[];
+    };
+    expect(snapshot.entry.blocks).toBeUndefined();
+    expect(snapshot.entry.tags).toBeUndefined();
+    expect(snapshot.blocks).toHaveLength(1);
+    expect(snapshot.tags).toEqual([tag.name]);
+
     await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
     expect(hits[0].event).toBe("entry.published");
+    // Payload вебхука должен совпадать по форме с entry.publish — с тегами.
+    const payload = JSON.parse(hits[0].body) as {
+      data: { tags?: Array<{ tag: { name: string } }> };
+    };
+    expect(payload.data.tags?.[0]?.tag.name).toBe(tag.name);
     // lastStatus пишется после HTTP-ответа (fire-and-forget): ждём запись в БД,
     // а не читаем однократно — иначе гонка между echo-хитом и update.
     await expect

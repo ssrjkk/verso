@@ -105,7 +105,7 @@ npm run dev         # http://localhost:3000
 
 ## Тестирование и CI
 
-- **Vitest:** 52 файла / 559 тестов (в т.ч. интеграции на реальном SQLite, SSRF/redirect/scheduler/auth/upload контракты).
+- **Vitest:** 53 файла / 566 тестов (в т.ч. интеграции на реальном SQLite, SSRF/redirect/scheduler/auth/upload контракты).
 - **Playwright:** 39 e2e-файлов / 83 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
 - **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`.  
   Локально воспроизводится тем же `npm run test:all`.

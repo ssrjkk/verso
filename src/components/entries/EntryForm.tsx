@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { trpc } from "@/trpc/client";
 import { slugify } from "@/lib/slug";
+import { dateTimeLocalToIso, toDateTimeLocalValue } from "@/lib/datetime";
 
 const formSchema = z.object({
   title: z.string().min(1, "Заголовок обязателен"),
@@ -22,7 +23,12 @@ const formSchema = z.object({
     { message: "fieldsJson должен быть валидным JSON" },
   ),
   tags: z.string().optional(),
-  scheduledFor: z.string().optional(),
+  scheduledFor: z
+    .string()
+    .optional()
+    .refine((v) => !v || !Number.isNaN(new Date(v).getTime()), {
+      message: "Некорректная дата",
+    }),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
 });
@@ -39,14 +45,6 @@ export type EntryFormInitial = {
   seoTitle?: string | null;
   seoDescription?: string | null;
 };
-
-function toDateTimeLocal(v: string | Date | null | undefined): string {
-  if (!v) return "";
-  const d = v instanceof Date ? v : new Date(v);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function EntryForm({
   collectionId: defaultCollectionId,
@@ -71,7 +69,7 @@ export function EntryForm({
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [fieldsJson, setFieldsJson] = useState(initial?.fieldsJson ?? "{}");
   const [tags, setTagsInput] = useState((initial?.tags ?? []).join(", "));
-  const [scheduledFor, setScheduledFor] = useState(toDateTimeLocal(initial?.scheduledFor));
+  const [scheduledFor, setScheduledFor] = useState(toDateTimeLocalValue(initial?.scheduledFor));
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
   const [seoDescription, setSeoDescription] = useState(initial?.seoDescription ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -109,11 +107,16 @@ export function EntryForm({
     }
     setErrors({});
     const finalSlug = slug.trim() !== "" ? slugify(slug) : undefined;
-    const extras: { seoTitle?: string; seoDescription?: string; scheduledFor?: string } = {
+    const scheduledIso = dateTimeLocalToIso(scheduledFor);
+    const extras: { seoTitle?: string; seoDescription?: string; scheduledFor?: string | null } = {
       ...(seoTitle.trim() !== "" ? { seoTitle: seoTitle.trim() } : {}),
       ...(seoDescription.trim() !== "" ? { seoDescription: seoDescription.trim() } : {}),
-      ...(scheduledFor.trim() !== "" ? { scheduledFor: scheduledFor.trim() } : {}),
     };
+    // При редактировании поле отправляется всегда: null явно снимает
+    // расписание. При создании null не нужен — update вызывается только
+    // если есть что сохранять.
+    if (isEdit) extras.scheduledFor = scheduledIso;
+    else if (scheduledIso) extras.scheduledFor = scheduledIso;
     const tagList = tags
       .split(",")
       .map((t) => t.trim())

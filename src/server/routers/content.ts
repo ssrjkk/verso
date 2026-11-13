@@ -232,9 +232,26 @@ export const apiKeyRouter = createTRPCRouter({
 const KNOWN_WEBHOOK_EVENTS = ["entry.published", "entry.updated"] as const;
 type WebhookEvent = (typeof KNOWN_WEBHOOK_EVENTS)[number];
 
+// HMAC-секрет не покидает сервер: ADMIN задаёт его при создании/ротации,
+// но прочитать сохранённый через tRPC нельзя. Раньше `list` и `toggle`
+// (editorProcedure) возвращали полную строку, включая secret.
+const WEBHOOK_SAFE_SELECT = {
+  id: true,
+  name: true,
+  url: true,
+  events: true,
+  isActive: true,
+  lastStatus: true,
+  lastDeliveryAt: true,
+  createdAt: true,
+} as const;
+
 export const webhookRouter = createTRPCRouter({
   list: adminProcedure.query(({ ctx }) =>
-    ctx.prisma.webhookEndpoint.findMany({ orderBy: { createdAt: "desc" } }),
+    ctx.prisma.webhookEndpoint.findMany({
+      orderBy: { createdAt: "desc" },
+      select: WEBHOOK_SAFE_SELECT,
+    }),
   ),
   create: adminProcedure
     .input(z.object({
@@ -247,7 +264,9 @@ export const webhookRouter = createTRPCRouter({
       }),
       isActive: z.boolean().default(true),
     }))
-    .mutation(({ ctx, input }) => ctx.prisma.webhookEndpoint.create({ data: input })),
+    .mutation(({ ctx, input }) =>
+      ctx.prisma.webhookEndpoint.create({ data: input, select: WEBHOOK_SAFE_SELECT }),
+    ),
   update: adminProcedure
     .input(z.object({
       id: z.string(),
@@ -260,16 +279,29 @@ export const webhookRouter = createTRPCRouter({
     }))
     .mutation(({ ctx, input }) => {
       const { id, ...data } = input;
-      return ctx.prisma.webhookEndpoint.update({ where: { id }, data });
+      return ctx.prisma.webhookEndpoint.update({
+        where: { id },
+        data,
+        select: WEBHOOK_SAFE_SELECT,
+      });
     }),
   toggle: editorProcedure
     .input(z.object({ id: z.string(), isActive: z.boolean() }))
     .mutation(({ ctx, input }) =>
-      ctx.prisma.webhookEndpoint.update({ where: { id: input.id }, data: { isActive: input.isActive } }),
+      ctx.prisma.webhookEndpoint.update({
+        where: { id: input.id },
+        data: { isActive: input.isActive },
+        select: WEBHOOK_SAFE_SELECT,
+      }),
     ),
   remove: adminProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) => ctx.prisma.webhookEndpoint.delete({ where: { id: input.id } })),
+    .mutation(({ ctx, input }) =>
+      ctx.prisma.webhookEndpoint.delete({
+        where: { id: input.id },
+        select: WEBHOOK_SAFE_SELECT,
+      }),
+    ),
   test: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

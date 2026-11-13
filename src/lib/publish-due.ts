@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { fireWebhooks } from "@/lib/webhook";
+import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 
 /**
  * Публикация записей по расписанию.
@@ -8,6 +9,9 @@ import { fireWebhooks } from "@/lib/webhook";
  * Флип условный (`updateMany` с фильтром по статусу и дате): параллельный
  * прогон видит уже PUBLISHED и пропускает запись — ровно одна ревизия.
  * Повторный прогон ничего не находит — идемпотентность бесплатно.
+ * Снапшот строится общим `buildEntrySnapshot` (скаляры + блоки + теги):
+ * relations вырезаются, поэтому откат на эту ревизию восстанавливает
+ * ровно то состояние, которое было на момент публикации.
  *
  * Вебхуки `entry.published` — только после коммита (fire-and-forget,
  * как в entry.publish). Время — явный параметр: тесты фиксируют `now`,
@@ -17,7 +21,7 @@ export async function publishDue(prisma: PrismaClient, now: Date = new Date()): 
   const published = await prisma.$transaction(async (tx) => {
     const due = await tx.entry.findMany({
       where: { status: "SCHEDULED", scheduledFor: { lte: now } },
-      include: { blocks: true },
+      include: { blocks: true, tags: { include: { tag: true } } },
       orderBy: { scheduledFor: "asc" },
     });
     const ids: string[] = [];
@@ -28,14 +32,16 @@ export async function publishDue(prisma: PrismaClient, now: Date = new Date()): 
       });
       if (flipped.count !== 1) continue;
       const count = await tx.revision.count({ where: { entryId: e.id } });
+      const tagNames = (e.tags ?? []).flatMap((t) => (t.tag?.name ? [t.tag.name] : []));
       await tx.revision.create({
         data: {
           entryId: e.id,
           version: count + 1,
-          snapshotJson: JSON.stringify({
-            entry: { ...e, status: "PUBLISHED", publishedAt: now },
-            blocks: e.blocks,
-          }),
+          snapshotJson: buildEntrySnapshot(
+            { ...e, status: "PUBLISHED", publishedAt: now },
+            e.blocks,
+            tagNames,
+          ),
           changeNote: "Публикация по расписанию",
           // Ревизия системная по триггеру, авторство — владелец записи.
           authorId: e.authorId,
@@ -49,7 +55,8 @@ export async function publishDue(prisma: PrismaClient, now: Date = new Date()): 
   if (published.length > 0) {
     const entries = await prisma.entry.findMany({
       where: { id: { in: published } },
-      include: { blocks: true },
+      // Теги — часть контракта payload, как в entry.publish.
+      include: { blocks: true, tags: { include: { tag: true } } },
     });
     for (const entry of entries) {
       fireWebhooks(prisma, "entry.published", entry);

@@ -23,6 +23,7 @@ import BlockRender from "@/components/blocks/BlockRender";
 import BlockEditor from "@/components/blocks/BlockEditor";
 import OgPreview from "@/components/seo/OgPreview";
 import { isValidSlug } from "@/lib/slug";
+import { dateTimeLocalToIso, toDateTimeLocalValue } from "@/lib/datetime";
 import {
   BLOCK_TYPES,
   BLOCK_TYPE_LABELS,
@@ -216,7 +217,9 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     setSeoTitle(e.seoTitle ?? "");
     setSeoDescription(e.seoDescription ?? "");
     setOgImage((e as { ogImageUrl?: string | null }).ogImageUrl ?? "");
-    setScheduledFor(e.scheduledFor ? new Date(e.scheduledFor).toISOString().slice(0, 16) : "");
+    // Храним локальное значение: datetime-local должен показывать время
+    // пользователя, а не UTC-срез (иначе расписание «уезжает» на offset).
+    setScheduledFor(toDateTimeLocalValue(e.scheduledFor));
     setStatus(e.status ?? "DRAFT");
     setSeoHydrated(true);
   }
@@ -297,7 +300,8 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       excerpt: excerpt || undefined,
       seoTitle: seoTitle || undefined,
       seoDescription: seoDescription || undefined,
-      scheduledFor: scheduledFor || undefined,
+      // Пустая строка → null: расписание можно снять, а не только заменить.
+      scheduledFor: dateTimeLocalToIso(scheduledFor),
       status: status as "DRAFT" | "IN_REVIEW" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED",
       changeNote: saveNote || "Обновление SEO и метаданных",
       // Оптимистичная блокировка: сервер отклонит сохранение чужой версии кодом CONFLICT.

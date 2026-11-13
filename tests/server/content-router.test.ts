@@ -12,6 +12,18 @@ import { caller } from "../helpers/trpc";
 
 type MockFn = ReturnType<typeof vi.fn>;
 
+// Контракт ответа webhook.*: secret никогда не покидает сервер.
+const WEBHOOK_SAFE_SELECT = {
+  id: true,
+  name: true,
+  url: true,
+  events: true,
+  isActive: true,
+  lastStatus: true,
+  lastDeliveryAt: true,
+  createdAt: true,
+};
+
 function makeDb() {
   const db = {
     pageBlock: {
@@ -57,9 +69,38 @@ function makeDb() {
     webhookEndpoint: {
       findMany: vi.fn(async () => []),
       findUnique: vi.fn(async () => null),
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "w1", ...data })),
-      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "w1", ...data })),
-      delete: vi.fn(async () => ({ id: "w1" })),
+      // Моделируем select: Prisma не вернёт secret, даже если он есть в строке.
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "w1",
+        name: data.name,
+        url: data.url,
+        events: data.events,
+        isActive: data.isActive,
+        lastStatus: null,
+        lastDeliveryAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      })),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "w1",
+        name: "Hook",
+        url: "https://example.com/hook",
+        events: "entry.published,entry.updated",
+        isActive: true,
+        lastStatus: null,
+        lastDeliveryAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...data,
+      })),
+      delete: vi.fn(async () => ({
+        id: "w1",
+        name: "Hook",
+        url: "https://example.com/hook",
+        events: "entry.published,entry.updated",
+        isActive: true,
+        lastStatus: null,
+        lastDeliveryAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      })),
     },
   };
   return { ...db, $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)) };
@@ -331,12 +372,15 @@ describe("apiKey router", () => {
 });
 
 describe("webhook router", () => {
-  it("list: новые сверху", async () => {
+  it("list: новые сверху и без secret в выборке", async () => {
     await caller("ADMIN", db).webhook.list();
-    expect(db.webhookEndpoint.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+    expect(db.webhookEndpoint.findMany).toHaveBeenCalledWith({
+      orderBy: { createdAt: "desc" },
+      select: WEBHOOK_SAFE_SELECT,
+    });
   });
 
-  it("create: передаёт данные как есть", async () => {
+  it("create: передаёт данные и не возвращает secret", async () => {
     const input = {
       name: "Hook",
       url: "https://example.com/hook",
@@ -345,8 +389,17 @@ describe("webhook router", () => {
       isActive: true,
     };
     const out = await caller("ADMIN", db).webhook.create(input);
-    expect(out).toMatchObject(input);
-    expect(db.webhookEndpoint.create).toHaveBeenCalledWith({ data: input });
+    expect(out).toMatchObject({
+      name: input.name,
+      url: input.url,
+      events: input.events,
+      isActive: input.isActive,
+    });
+    expect(out).not.toHaveProperty("secret");
+    expect(db.webhookEndpoint.create).toHaveBeenCalledWith({
+      data: input,
+      select: WEBHOOK_SAFE_SELECT,
+    });
   });
 
   it("create: не-http(s) URL отклоняется до записи", async () => {
@@ -369,17 +422,24 @@ describe("webhook router", () => {
     expect(db.webhookEndpoint.update).toHaveBeenCalledWith({
       where: { id: "w1" },
       data: { name: "New", events: "entry.updated" },
+      select: WEBHOOK_SAFE_SELECT,
     });
   });
 
-  it("toggle/remove", async () => {
-    await caller("MANAGER", db).webhook.toggle({ id: "w1", isActive: false });
+  it("toggle: MANAGER не получает secret; remove: без secret", async () => {
+    const toggled = await caller("MANAGER", db).webhook.toggle({ id: "w1", isActive: false });
+    expect(toggled).not.toHaveProperty("secret");
     expect(db.webhookEndpoint.update).toHaveBeenCalledWith({
       where: { id: "w1" },
       data: { isActive: false },
+      select: WEBHOOK_SAFE_SELECT,
     });
-    await caller("ADMIN", db).webhook.remove({ id: "w1" });
-    expect(db.webhookEndpoint.delete).toHaveBeenCalledWith({ where: { id: "w1" } });
+    const removed = await caller("ADMIN", db).webhook.remove({ id: "w1" });
+    expect(removed).not.toHaveProperty("secret");
+    expect(db.webhookEndpoint.delete).toHaveBeenCalledWith({
+      where: { id: "w1" },
+      select: WEBHOOK_SAFE_SELECT,
+    });
   });
 
   it("test: несуществующий -> NOT_FOUND", async () => {
