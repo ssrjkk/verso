@@ -385,8 +385,8 @@ open redirect.
 
 **Решение.**
 - `publishDue` строит снапшот общим `buildEntrySnapshot` (скаляры без
-  relations + блоки + имена тегов) и отправляет теги в payload вебхука — форма
-  совпадает с `entry.publish`.
+  relations + блоки + имена тегов), пишет activity `PUBLISHED` и отправляет
+  теги в payload вебхука — форма и аудит совпадают с `entry.publish`.
 - `webhookRouter` (`list`/`create`/`update`/`toggle`/`remove`) отвечает только
   через `WEBHOOK_SAFE_SELECT`; сохранённый `secret` нельзя прочитать через
   tRPC. Особенно важно для `toggle`: это `editorProcedure`, и раньше MANAGER

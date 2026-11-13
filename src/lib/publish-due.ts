@@ -47,6 +47,16 @@ export async function publishDue(prisma: PrismaClient, now: Date = new Date()): 
           authorId: e.authorId,
         },
       });
+      // Тот же аудит-след, что и у ручной публикации: лента активности
+      // не должна терять записи, опубликованные планировщиком.
+      await tx.activityLog.create({
+        data: {
+          entryId: e.id,
+          userId: e.authorId,
+          action: "PUBLISHED",
+          comment: "Публикация по расписанию",
+        },
+      });
       ids.push(e.id);
     }
     return ids;

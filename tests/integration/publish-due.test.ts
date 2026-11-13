@@ -147,6 +147,9 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
     expect(row?.publishedAt).toEqual(now);
 
     expect(await prisma.revision.count({ where: { entryId: id } })).toBe(1);
+    expect(
+      await prisma.activityLog.count({ where: { entryId: id, action: "PUBLISHED" } }),
+    ).toBe(1);
 
     // Снапшот — общий формат buildEntrySnapshot: скаляры без relations,
     // блоки и теги рядом. Иначе откат теряет теги, а блоки дублируются.
