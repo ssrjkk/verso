@@ -37,13 +37,18 @@ SMB) для SQLite не подходят — WAL требует корректн
 | `BETTER_AUTH_URL` | Публичный URL, например `https://cms.example.com` |
 | `NEXT_PUBLIC_APP_URL` | Тот же публичный URL |
 | `TRUSTED_ORIGINS` | Доп. origin через запятую, если есть preview/alternate-домен |
-| `CRON_SECRET` | `openssl rand -base64 32`; без него cron-маршрут отдаёт **503** |
+| `CRON_SECRET` | `openssl rand -base64 32`; без него cron-маршруты (публикация и вебхуки) отдают **503** |
 
 Опционально:
 
 | Переменная | Когда нужна |
 |---|---|
 | `PUBLISH_DUE_TICK_MS` | Внутренний таймер публикации (если нет внешнего cron). Например `60000` |
+| `WEBHOOK_DRAIN_TICK_MS` | Тик доставки outbox. По умолчанию `60000`; `0` выключает тик (нужен `/api/cron/webhooks`) |
+| `WEBHOOK_MAX_ATTEMPTS` | Сколько HTTP-попыток до `FAILED`. По умолчанию `8` |
+| `WEBHOOK_BASE_BACKOFF_MS` | База экспоненциального backoff. По умолчанию `60000`; потолок — 6 часов |
+| `WEBHOOK_LEASE_MS` | Lease для `DELIVERING`, после которого зависшая доставка снова доступна. По умолчанию `600000` |
+| `WEBHOOK_DRAIN_BATCH` | Сколько доставок разбирать за один drain. По умолчанию `50` |
 | `AUTH_RATELIMIT=off` | **Только throwaway/e2e.** В production не ставить |
 | `VERSO_TEST_HARNESS=1` | **Только e2e.** В production не ставить |
 | `WEBHOOK_ALLOW_PRIVATE=1` | **Только e2e.** В production приложение падает fail-fast |
@@ -80,8 +85,8 @@ npm run start               # по умолчанию порт 3000
    npx prisma migrate deploy
    npm run build
    ```
-4. Перезапустите процесс и проверьте `GET /`, вход и `POST /api/cron/publish-due`
-   с боевым `CRON_SECRET`.
+4. Перезапустите процесс и проверьте `GET /`, вход, `POST /api/cron/publish-due`
+   и `POST /api/cron/webhooks` с боевым `CRON_SECRET`.
 5. Если миграция сломала совместимость — откатывайтесь на предыдущий код и
    восстанавливайте БД из backup. Автоматического `down` у Prisma Migrate нет.
 
@@ -171,9 +176,9 @@ backup + retention 7–30 дней; для активной редакции —
 Не запускайте `migrate deploy` на повреждённом/недокопированном файле: сначала
 убедитесь, что `integrity_check` возвращает `ok`.
 
-## 6. Планировщик публикаций
+## 6. Планировщик публикаций и доставка вебхуков
 
-Два взаимозаменяемых способа:
+Публикация (`SCHEDULED → PUBLISHED`) — два взаимозаменяемых способа:
 
 1. **Внешний cron (предпочтительно):**
    ```cron
@@ -189,14 +194,71 @@ backup + retention 7–30 дней; для активной редакции —
 Если `CRON_SECRET` не задан, маршрут отвечает `503` (fail closed), а не
 публикует без авторизации.
 
+Доставка вебхуков идёт через транзакционный outbox `WebhookDelivery`:
+
+- событие и payload фиксируются в той же транзакции, что и изменение
+  контента; сеть в транзакцию не входит;
+- после коммита `kickWebhookDrain` запускает фоновый drain, а тик
+  instrumentation раз в 60 секунд добирает всё, что осталось `PENDING`;
+- `WEBHOOK_DRAIN_TICK_MS=0` выключает внутренний тик. Тогда нужен внешний
+  cron (или собственный вызов):
+  ```cron
+  * * * * * curl -fsS -X POST \
+    -H "Authorization: Bearer $CRON_SECRET" \
+    https://cms.example.com/api/cron/webhooks >/dev/null
+  ```
+- claim строки условный, поэтому тики нескольких инстансов и внешний cron не
+  отправляют одну доставку дважды. Зависшая `DELIVERING` возвращается в
+  оборот после `WEBHOOK_LEASE_MS`;
+- на один drain — одна HTTP-попытка. Повторы планируются в БД с
+  экспоненциальным backoff (`WEBHOOK_BASE_BACKOFF_MS`, потолок 6 часов) и
+  переживают рестарт; после `WEBHOOK_MAX_ATTEMPTS` доставка становится
+  `FAILED`;
+- выключенный endpoint получает `FAILED` с причиной `Endpoint disabled`;
+  повторное включение не воскрешает старые события;
+- гарантия — **at-least-once**: падение между HTTP-ответом и записью
+  `DELIVERED` приведёт к повторной отправке. Получатель должен быть
+  идемпотентным;
+- порядок событий для одного endpoint не гарантируется: событие, ушедшее в
+  backoff, может быть доставлено после более нового. Если порядок важен,
+  consumer сверяет `updatedAt`/версию из payload, а не полагается на
+  последовательность HTTP-запросов.
+
+Оба cron-маршрута отвечают `503`, если `CRON_SECRET` не задан, и `401` при
+чужом секрете.
+
 ## 7. Мониторинг и обслуживание
 
-- Свободное место на диске: SQLite пишет WAL, uploads растут независимо.
+- Свободное место на диске: SQLite пишет WAL, uploads и outbox растут
+  независимо.
 - Успешность backup и `PRAGMA integrity_check` (например, раз в неделю на
   копии, не на боевом файле).
-- Ответ cron: `200` и `published` в JSON; `401/503` — проблема конфигурации.
+- Ответ cron публикации: `200` и `published` в JSON; `401/503` — проблема
+  конфигурации.
+- Ответ cron вебхуков: `200` и счётчики
+  `{claimed, delivered, retried, failed}`. Растущий `retried`/`failed` —
+  проблема получателя или его доступности.
+- Outbox: смотрите количество `PENDING`/`DELIVERING` и самые старые
+  `nextAttemptAt`:
+  ```bash
+  sqlite3 "$DB" "SELECT status, COUNT(*), MIN(nextAttemptAt) \
+    FROM \"WebhookDelivery\" GROUP BY status;"
+  ```
+  `DELIVERING` с давно истёкшим lease означает упавший процесс — следующий
+  drain подхватит строку сам.
 - `webhookEndpoint.lastStatus` в админке: повторяющиеся `5xx` — проблема
   получателя, а не CMS.
+- Терминальные доставки (`DELIVERED`/`FAILED`) не удаляются автоматически.
+  Периодически чистите их с запасом по времени (например, старше 30 дней),
+  предварительно сделав backup:
+  ```bash
+  CUTOFF=$(sqlite3 "$DB" \
+    "SELECT strftime('%Y-%m-%dT%H:%M:%f+00:00','now','-30 days');")
+  sqlite3 "$DB" "DELETE FROM \"WebhookDelivery\" \
+    WHERE status IN ('DELIVERED','FAILED') AND nextAttemptAt < '$CUTOFF';"
+  ```
+  После большой чистки при необходимости выполните `VACUUM` в окно
+  обслуживания.
 - Рост БД: `VACUUM` допустим, но требует свободного места и блокировки;
   делайте его в окно обслуживания после backup.
 

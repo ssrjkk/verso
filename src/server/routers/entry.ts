@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure, editorProcedure } from "../trpc";
 import { slugify } from "@/lib/slug";
-import { fireWebhooks } from "@/lib/webhook";
+import { enqueueWebhooks, kickWebhookDrain } from "@/lib/webhook-outbox";
 import { EntryStatus, isEntryStatus } from "@/lib/entry-status";
 import { buildEntrySnapshot, parseEntrySnapshot } from "@/lib/entry-snapshot";
 
@@ -165,7 +165,7 @@ export const entryRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, changeNote, scheduledFor, expectedUpdatedAt, ...rest } = input;
-      return ctx.prisma.$transaction(async (tx) => {
+      const updated = await ctx.prisma.$transaction(async (tx) => {
         // Base row for FK-free checks below (collection scope + optimistic lock).
         const current = await tx.entry.findUnique({
           where: { id },
@@ -225,20 +225,22 @@ export const entryRouter = createTRPCRouter({
             authorId: ctx.user.id,
           },
         });
-        return { updated, wasPublished: current.status === "PUBLISHED" };
-      }).then(({ updated, wasPublished }) => {
-        // Сеть — только после коммита и без ожидания: публикация не блокируется.
+        // Outbox — в той же транзакции, что и запись: событие не потеряется
+        // при падении процесса между коммитом и HTTP-доставкой.
         // entry.published — только на переходе в PUBLISHED, правки живой
         // публикации идут как entry.updated (без дублей события публикации).
-        fireWebhooks(
-          ctx.prisma,
-          updated.status === "PUBLISHED" && !wasPublished
+        await enqueueWebhooks(
+          tx,
+          updated.status === "PUBLISHED" && current.status !== "PUBLISHED"
             ? "entry.published"
             : "entry.updated",
           updated,
         );
         return updated;
       });
+      // Сеть — только после коммита и без ожидания: публикация не блокируется.
+      kickWebhookDrain(ctx.prisma);
+      return updated;
     }),
 
   // Перетаскивание карточки на Kanban-доске редполитики (dnd-kit)
@@ -270,10 +272,11 @@ export const entryRouter = createTRPCRouter({
         await tx.activityLog.create({
           data: { entryId: e.id, userId: ctx.user.id, action: "STAGE_CHANGED", comment: `Этап → ${stage.name}` },
         });
+        if (isPublishing) await enqueueWebhooks(tx, "entry.published", e);
         return e;
       });
       // Сеть — только после коммита: не держим транзакцию на HTTP.
-      if (isPublishing) fireWebhooks(ctx.prisma, "entry.published", entry);
+      if (isPublishing) kickWebhookDrain(ctx.prisma);
       return entry;
     }),
 
@@ -422,10 +425,11 @@ export const entryRouter = createTRPCRouter({
           comment: "Запись опубликована",
         },
       });
+      await enqueueWebhooks(tx, "entry.published", entry);
       return { entry, changed: true };
     });
     // Сеть — только после коммита.
-    if (result.changed) fireWebhooks(ctx.prisma, "entry.published", result.entry);
+    if (result.changed) kickWebhookDrain(ctx.prisma);
     return result.entry;
   }),
 
@@ -497,10 +501,11 @@ export const entryRouter = createTRPCRouter({
               comment: names.length ? names.join(", ") : "Теги очищены",
             },
           });
+          await enqueueWebhooks(tx, "entry.updated", updated);
         }
         return { updated, changed };
       });
-      if (result.changed) fireWebhooks(ctx.prisma, "entry.updated", result.updated);
+      if (result.changed) kickWebhookDrain(ctx.prisma);
       return result.updated;
     }),
 

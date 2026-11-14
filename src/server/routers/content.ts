@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
+import { WEBHOOK_EVENTS, type WebhookEvent } from "@/lib/webhook-outbox";
 import { mediaCreateIssue } from "@/lib/upload-validation";
 import { validateRedirect } from "@/lib/redirects";
 import { EntryStatus } from "@/lib/entry-status";
@@ -229,8 +230,7 @@ export const apiKeyRouter = createTRPCRouter({
 });
 
 // wire into appRouter as webhook
-const KNOWN_WEBHOOK_EVENTS = ["entry.published", "entry.updated"] as const;
-type WebhookEvent = (typeof KNOWN_WEBHOOK_EVENTS)[number];
+const KNOWN_WEBHOOK_EVENTS = WEBHOOK_EVENTS;
 
 // HMAC-секрет не покидает сервер: ADMIN задаёт его при создании/ротации,
 // но прочитать сохранённый через tRPC нельзя. Раньше `list` и `toggle`

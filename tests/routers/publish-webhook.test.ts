@@ -1,24 +1,40 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/lib/prisma-client";
+import { drainWebhookDeliveries } from "@/lib/webhook-outbox";
 import { appRouter } from "@/server/routers/_app";
 
-// Контракт P0-B: доставка идёт через node:http(s) с DNS-пиннингом, а не через
-// fetch, и является fire-and-forget (сеть не держит публикацию). Поэтому тест
-// проверяет реальный провод: локальный echo-сервер, точный HMAC по сырому телу
-// и запись lastStatus после доставки. fetch-мок здесь больше не контракт.
+// Kick после коммита — фоновый по контракту. В тесте отключаем его и
+// запускаем drain явно: тогда проверка провода и HMAC детерминирована.
+vi.mock("@/lib/webhook-outbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/webhook-outbox")>();
+  return { ...actual, kickWebhookDrain: vi.fn() };
+});
+
+// Контракт: entry.publish пишет событие в транзакционный outbox, а drain
+// доставляет его через node:http(s) с DNS-пиннингом. Проверяем реальный
+// провод: SQLite + локальный echo-сервер + точный HMAC по сырому телу.
 
 type Hit = { path: string; event: string; sign: string; body: string };
 
+let dir = "";
+let prisma: PrismaClient;
 let servers: Server[] = [];
 let hits: Hit[] = [];
 let savedAllowPrivate: string | undefined;
+let seq = 0;
 
 async function echoServer(): Promise<number> {
   const server = createServer((req, res) => {
     let raw = "";
-    req.on("data", (c: Buffer) => {
-      raw += c.toString();
+    req.on("data", (chunk: Buffer) => {
+      raw += chunk.toString();
     });
     req.on("end", () => {
       hits.push({
@@ -38,78 +54,116 @@ async function echoServer(): Promise<number> {
   return addr.port;
 }
 
-beforeEach(() => {
-  hits = [];
-  // Флаг разрешён только тестовому харнессу: доставка идёт на 127.0.0.1.
-  savedAllowPrivate = process.env.WEBHOOK_ALLOW_PRIVATE;
-  process.env.WEBHOOK_ALLOW_PRIVATE = "1";
-});
-
-afterEach(() => {
-  for (const s of servers) {
-    s.closeAllConnections?.();
-    s.close();
-  }
-  servers = [];
-  if (savedAllowPrivate === undefined) delete process.env.WEBHOOK_ALLOW_PRIVATE;
-  else process.env.WEBHOOK_ALLOW_PRIVATE = savedAllowPrivate;
-});
-
-function caller(role: "ADMIN" | "MANAGER" | "VIEWER", prisma: unknown) {
+function caller(role: "ADMIN" | "MANAGER" | "VIEWER", client: PrismaClient) {
   return appRouter.createCaller({
-    prisma: prisma as never,
+    prisma: client,
     session: null,
     user: { id: "u1", email: "u@t.dev", name: "U", role } as never,
   } as never);
 }
 
-describe("entry.publish -> webhooks, без БД", () => {
+beforeAll(async () => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "verso-publish-webhook-"));
+  const dbFile = path.join(dir, "test.db").replace(/\\/g, "/");
+  execSync("npx prisma migrate deploy", {
+    cwd: process.cwd(),
+    env: { ...process.env, DATABASE_URL: `file:${dbFile}` },
+    stdio: "pipe",
+  });
+  prisma = createPrismaClient(`file:${dbFile}`);
+  await prisma.$connect();
+  savedAllowPrivate = process.env.WEBHOOK_ALLOW_PRIVATE;
+  process.env.WEBHOOK_ALLOW_PRIVATE = "1";
+}, 180000);
+
+afterAll(async () => {
+  await prisma?.$disconnect().catch(() => undefined);
+  fs.rmSync(dir, { recursive: true, force: true });
+  if (savedAllowPrivate === undefined) delete process.env.WEBHOOK_ALLOW_PRIVATE;
+  else process.env.WEBHOOK_ALLOW_PRIVATE = savedAllowPrivate;
+});
+
+afterEach(() => {
+  for (const server of servers) {
+    server.closeAllConnections?.();
+    server.close();
+  }
+  servers = [];
+});
+
+let entryId = "";
+
+beforeEach(async () => {
+  hits = [];
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.webhookEndpoint.deleteMany();
+  await prisma.activityLog.deleteMany();
+  await prisma.revision.deleteMany();
+  await prisma.entry.deleteMany();
+  await prisma.collection.deleteMany();
+  await prisma.user.deleteMany();
+
+  seq += 1;
+  const stamp = `${Date.now()}-${seq}`;
+  await prisma.user.create({
+    data: { id: "u1", name: "U", email: `u-${stamp}@t.dev`, role: "MANAGER" },
+  });
+  const collection = await prisma.collection.create({
+    data: { id: `c-${stamp}`, name: "C", slug: `c-${stamp}` },
+  });
+  entryId = `e-${stamp}`;
+  await prisma.entry.create({
+    data: {
+      id: entryId,
+      collectionId: collection.id,
+      title: "T",
+      slug: "t",
+      authorId: "u1",
+    },
+  });
+});
+
+describe("entry.publish -> outbox -> webhooks", () => {
   it("MANAGER: PUBLISHED, доставка на echo с X-Verso-Event и HMAC", async () => {
     const port = await echoServer();
-    const prisma = {
-      $transaction: vi.fn(),
-      entry: {
-        findUnique: vi.fn(async () => ({ id: "e1", status: "DRAFT" })),
-        update: vi.fn(async (a: { data: Record<string, unknown> }) => ({
-          id: "e1",
-          title: "T",
-          ...a.data,
-        })),
+    const endpoint = await prisma.webhookEndpoint.create({
+      data: {
+        id: "w1",
+        name: "hook",
+        url: `http://127.0.0.1:${port}/hook`,
+        secret: "s3",
+        events: "entry.published,entry.updated",
+        isActive: true,
       },
-      revision: { count: vi.fn(async () => 0), create: vi.fn(async () => ({})) },
-      activityLog: { create: vi.fn(async () => ({})) },
-      webhookEndpoint: {
-        findMany: vi.fn(async () => [
-          {
-            id: "w1",
-            url: `http://127.0.0.1:${port}/hook`,
-            secret: "s3",
-            events: "entry.published,entry.updated",
-            isActive: true,
-          },
-          // Не подписан на entry.published — не должен получить запрос.
-          {
-            id: "w2",
-            url: `http://127.0.0.1:${port}/other`,
-            secret: "x",
-            events: "entry.created",
-            isActive: true,
-          },
-        ]),
-        // Контракт P0-B: результат доставки фиксируется в БД (lastStatus).
-        update: vi.fn(async () => ({})),
+    });
+    // Не подписан на entry.published — не должен получить запрос.
+    await prisma.webhookEndpoint.create({
+      data: {
+        id: "w2",
+        name: "other",
+        url: `http://127.0.0.1:${port}/other`,
+        secret: "x",
+        events: "entry.created",
+        isActive: true,
       },
-    };
+    });
 
-    (prisma.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
-      async (fn: (tx: unknown) => unknown) => fn(prisma),
-    );
-
-    const out = await caller("MANAGER", prisma).entry.publish({ id: "e1" });
+    const out = await caller("MANAGER", prisma).entry.publish({ id: entryId });
     expect(out.status).toBe("PUBLISHED");
     expect(out.publishedAt).toBeInstanceOf(Date);
 
-    await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
+    const queued = await prisma.webhookDelivery.findMany();
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({
+      endpointId: endpoint.id,
+      event: "entry.published",
+      status: "PENDING",
+    });
+
+    const drain = await drainWebhookDeliveries(prisma);
+    expect(drain).toEqual({ claimed: 1, delivered: 1, retried: 0, failed: 0 });
+
+    expect(hits).toHaveLength(1);
     const hit = hits[0];
     expect(hit.path, "событие получил только подписанный endpoint").toBe("/hook");
     expect(hit.event).toBe("entry.published");
@@ -123,38 +177,41 @@ describe("entry.publish -> webhooks, без БД", () => {
       data: { id: string; status: string };
     };
     expect(body.event).toBe("entry.published");
-    expect(body.data.id).toBe("e1");
+    expect(body.data.id).toBe(entryId);
     expect(body.data.status).toBe("PUBLISHED");
 
-    // lastStatus пишется по факту доставки (после ответа сервера).
-    await expect
-      .poll(() => prisma.webhookEndpoint.update.mock.calls.length, { timeout: 5000 })
-      .toBe(1);
-    expect(prisma.webhookEndpoint.update).toHaveBeenCalledWith({
-      where: { id: "w1" },
-      data: { lastStatus: "200", lastDeliveryAt: expect.any(Date) },
+    expect(
+      (await prisma.webhookEndpoint.findUnique({ where: { id: endpoint.id } }))
+        ?.lastStatus,
+    ).toBe("200");
+    expect(await prisma.webhookDelivery.findFirst()).toMatchObject({
+      status: "DELIVERED",
+      attempts: 1,
+      responseStatus: 200,
     });
   });
 
-  it("VIEWER: FORBIDDEN, вебхук не стреляет", async () => {
+  it("VIEWER: FORBIDDEN, в outbox ничего не попадает", async () => {
     const port = await echoServer();
-    const prisma = {
-      entry: {
-        findUnique: vi.fn(async () => ({ id: "e1" })),
-        update: vi.fn(),
+    await prisma.webhookEndpoint.create({
+      data: {
+        id: "w1",
+        name: "hook",
+        url: `http://127.0.0.1:${port}/hook`,
+        secret: "s3",
+        events: "entry.published",
+        isActive: true,
       },
-      webhookEndpoint: {
-        findMany: vi.fn(async () => []),
-        update: vi.fn(),
-      },
-    };
-
-    await expect(caller("VIEWER", prisma).entry.publish({ id: "e1" })).rejects.toMatchObject({
-      code: "FORBIDDEN",
     });
-    expect(prisma.entry.update).not.toHaveBeenCalled();
-    expect(prisma.webhookEndpoint.findMany).not.toHaveBeenCalled();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(hits, `сервер ${port} не должен был получить запрос`).toHaveLength(0);
+
+    await expect(
+      caller("VIEWER", prisma).entry.publish({ id: entryId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(await prisma.webhookDelivery.count()).toBe(0);
+    expect(
+      (await prisma.entry.findUnique({ where: { id: entryId } }))?.status,
+    ).toBe("DRAFT");
+    expect(hits).toHaveLength(0);
   });
 });

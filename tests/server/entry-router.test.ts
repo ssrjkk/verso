@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hooks = vi.hoisted(() => ({ fireWebhooks: vi.fn() }));
+const hooks = vi.hoisted(() => ({
+  enqueueWebhooks: vi.fn(),
+  kickWebhookDrain: vi.fn(),
+}));
 
-vi.mock("@/lib/webhook", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/webhook")>();
-  return { ...actual, fireWebhooks: hooks.fireWebhooks };
+vi.mock("@/lib/webhook-outbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/webhook-outbox")>();
+  return {
+    ...actual,
+    enqueueWebhooks: hooks.enqueueWebhooks,
+    kickWebhookDrain: hooks.kickWebhookDrain,
+  };
 });
 
 import { caller } from "../helpers/trpc";
@@ -58,7 +65,8 @@ let db: ReturnType<typeof makeDb>;
 
 beforeEach(() => {
   db = makeDb();
-  hooks.fireWebhooks.mockReset();
+  hooks.enqueueWebhooks.mockReset();
+  hooks.kickWebhookDrain.mockReset();
 });
 
 describe("entry list/get", () => {
@@ -293,11 +301,14 @@ describe("entry.update", () => {
 
   it("DRAFT -> entry.updated после коммита", async () => {
     await caller("MANAGER", db).entry.update({ id: "e1", title: "T" });
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(
-      db,
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(
+      // Внутри транзакции Prisma передаёт tx без $transaction — проверяем
+      // событие и payload, а не идентичность клиента.
+      expect.anything(),
       "entry.updated",
       expect.objectContaining({ id: "e1", status: "DRAFT" }),
     );
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 
   it("PUBLISHED -> entry.published и publishedAt", async () => {
@@ -308,11 +319,14 @@ describe("entry.update", () => {
         data: { status: "PUBLISHED", publishedAt: expect.any(Date) },
       }),
     );
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(
-      db,
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(
+      // Внутри транзакции Prisma передаёт tx без $transaction — проверяем
+      // событие и payload, а не идентичность клиента.
+      expect.anything(),
       "entry.published",
       expect.objectContaining({ status: "PUBLISHED" }),
     );
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 
   it("уже опубликованная запись при правке не двигает publishedAt и шлёт entry.updated", async () => {
@@ -334,11 +348,14 @@ describe("entry.update", () => {
         },
       }),
     );
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(
-      db,
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(
+      // Внутри транзакции Prisma передаёт tx без $transaction — проверяем
+      // событие и payload, а не идентичность клиента.
+      expect.anything(),
       "entry.updated",
       expect.objectContaining({ status: "PUBLISHED" }),
     );
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 });
 
@@ -375,7 +392,8 @@ describe("entry.moveStage", () => {
     expect(db.activityLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ action: "STAGE_CHANGED", comment: "Этап → Публикация" }),
     });
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(db, "entry.published", expect.anything());
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(expect.anything(), "entry.published", expect.anything());
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 
   it("непубликующий этап не ставит publishedAt и не шлёт вебхук", async () => {
@@ -392,7 +410,8 @@ describe("entry.moveStage", () => {
       where: { id: "e1" },
       data: { stageId: "s2", status: "IN_REVIEW", publishedAt: undefined },
     });
-    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+    expect(hooks.enqueueWebhooks).not.toHaveBeenCalled();
+    expect(hooks.kickWebhookDrain).not.toHaveBeenCalled();
   });
 
   it("повторный переход в PUBLISHED не двигает дату и не дублирует вебхук", async () => {
@@ -414,7 +433,8 @@ describe("entry.moveStage", () => {
       where: { id: "e1" },
       data: { stageId: "s1", status: "PUBLISHED", publishedAt: undefined },
     });
-    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+    expect(hooks.enqueueWebhooks).not.toHaveBeenCalled();
+    expect(hooks.kickWebhookDrain).not.toHaveBeenCalled();
   });
 });
 
@@ -498,7 +518,8 @@ describe("entry.publish/remove", () => {
     expect(db.activityLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ action: "PUBLISHED" }),
     });
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(db, "entry.published", expect.anything());
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(expect.anything(), "entry.published", expect.anything());
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 
   it("publish идемпотентен: PUBLISHED не даёт второй ревизии/вебхука", async () => {
@@ -517,7 +538,8 @@ describe("entry.publish/remove", () => {
     expect(db.entry.update).not.toHaveBeenCalled();
     expect(db.revision.create).not.toHaveBeenCalled();
     expect(db.activityLog.create).not.toHaveBeenCalled();
-    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+    expect(hooks.enqueueWebhooks).not.toHaveBeenCalled();
+    expect(hooks.kickWebhookDrain).not.toHaveBeenCalled();
   });
 
   it("remove: удаляет запись", async () => {
@@ -554,7 +576,8 @@ describe("entry.setTags", () => {
     expect(db.activityLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ entryId: "e1", action: "TAGS_CHANGED" }),
     });
-    expect(hooks.fireWebhooks).toHaveBeenCalledWith(db, "entry.updated", expect.anything());
+    expect(hooks.enqueueWebhooks).toHaveBeenCalledWith(expect.anything(), "entry.updated", expect.anything());
+    expect(hooks.kickWebhookDrain).toHaveBeenCalledWith(db);
   });
 
   it("пустой список: только удаляет связи, без createMany и без ревизии", async () => {
@@ -565,7 +588,8 @@ describe("entry.setTags", () => {
     expect(db.entryTag.createMany).not.toHaveBeenCalled();
     // Набор не изменился — не плодим ревизию и не дублируем entry.updated.
     expect(db.revision.create).not.toHaveBeenCalled();
-    expect(hooks.fireWebhooks).not.toHaveBeenCalled();
+    expect(hooks.enqueueWebhooks).not.toHaveBeenCalled();
+    expect(hooks.kickWebhookDrain).not.toHaveBeenCalled();
   });
 
   it("несуществующая запись -> NOT_FOUND до записи тегов", async () => {

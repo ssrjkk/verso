@@ -1,4 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
+
+// Валидация входов не должна зависеть от записи outbox.
+vi.mock("@/lib/webhook-outbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/webhook-outbox")>();
+  return { ...actual, enqueueWebhooks: vi.fn(async () => 0), kickWebhookDrain: vi.fn() };
+});
+
 import { appRouter } from "@/server/routers/_app";
 
 function caller(role: "ADMIN" | "MANAGER" = "ADMIN", prisma?: unknown) {

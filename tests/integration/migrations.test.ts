@@ -34,6 +34,7 @@ describe("Prisma migrations and SQLite runtime", () => {
     const appliedNames = applied.map((r) => r.migration_name);
     expect(appliedNames).toContain("20261114000000_baseline");
     expect(appliedNames).toContain("20261114000100_indexes");
+    expect(appliedNames).toContain("20261114000200_webhook_outbox");
 
     const expected = [
       "Session_userId_idx",
@@ -53,6 +54,8 @@ describe("Prisma migrations and SQLite runtime", () => {
       "EditorialTask_assigneeId_idx",
       "ActivityLog_entryId_createdAt_idx",
       "WebhookEndpoint_isActive_idx",
+      "WebhookDelivery_status_nextAttemptAt_idx",
+      "WebhookDelivery_endpointId_createdAt_idx",
     ];
     const placeholders = expected.map(() => "?").join(", ");
     const rows = await prisma.$queryRawUnsafe<Array<{ name: string }>>(

@@ -1,28 +1,64 @@
 /**
- * Server startup hook: опциональный интервал публикации по расписанию.
+ * Server startup hooks: опциональная публикация по расписанию и доставка
+ * вебхуков из outbox.
  *
- * Выключен по умолчанию. Включается только явным
- * `PUBLISH_DUE_TICK_MS` (self-hosted без внешнего cron). Внешний cron
- * (`POST /api/cron/publish-due` с `CRON_SECRET`) предпочтительнее:
- * при нескольких инстансах тики дублируются, но `publishDue`
- * идемпотентна и лишний тик публикует ноль записей.
+ * Публикация выключена по умолчанию (`PUBLISH_DUE_TICK_MS` пусто). Внешний
+ * cron (`POST /api/cron/publish-due` с `CRON_SECRET`) предпочтительнее:
+ * при нескольких инстансах тики дублируются, но `publishDue` идемпотентна.
+ *
+ * Доставка вебхуков включена по умолчанию раз в 60 секунд: pending-строки
+ * outbox должны уходить и без внешнего cron. `WEBHOOK_DRAIN_TICK_MS=0`
+ * выключает тик — тогда используйте `/api/cron/webhooks`. Claim в outbox
+ * условный, поэтому параллельные тики/инстансы не дублируют отправку.
  */
+/**
+ * Разбирает интервал из env. Пустое значение — «не задано» (fallback),
+ * `0` — явное выключение, мусор — предупреждение и fallback, чтобы опечатка
+ * в конфиге не выключала доставку молча.
+ */
+function readIntervalMs(raw: string | undefined, fallback: number): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const ms = Number(raw);
+  if (Number.isFinite(ms) && ms >= 0) return ms;
+  console.warn(
+    `[instrumentation] Некорректный интервал "${raw}", использую ${fallback} мс`,
+  );
+  return fallback;
+}
+
 export function register() {
-  const everyMs = Number(process.env.PUBLISH_DUE_TICK_MS ?? "");
-  if (!Number.isFinite(everyMs) || everyMs <= 0) return;
-  // better-sqlite3 — только Node.js runtime; в edge интервал не стартует.
+  // better-sqlite3 — только Node.js runtime; в edge таймеры не стартуют.
   if (process.env.NEXT_RUNTIME === "edge") return;
-  const tick = async () => {
-    try {
-      const [{ prisma }, { publishDue }] = await Promise.all([
-        import("@/lib/prisma"),
-        import("@/lib/publish-due"),
-      ]);
-      await publishDue(prisma, new Date());
-    } catch {
-      // Планировщик никогда не роняет сервер.
-    }
-  };
-  const timer = setInterval(() => void tick(), everyMs);
-  timer.unref?.();
+
+  const publishEveryMs = readIntervalMs(process.env.PUBLISH_DUE_TICK_MS, 0);
+  if (publishEveryMs > 0) {
+    const timer = setInterval(async () => {
+      try {
+        const [{ prisma }, { publishDue }] = await Promise.all([
+          import("@/lib/prisma"),
+          import("@/lib/publish-due"),
+        ]);
+        await publishDue(prisma, new Date());
+      } catch {
+        // Планировщик никогда не роняет сервер.
+      }
+    }, publishEveryMs);
+    timer.unref?.();
+  }
+
+  const webhookEveryMs = readIntervalMs(process.env.WEBHOOK_DRAIN_TICK_MS, 60_000);
+  if (webhookEveryMs > 0) {
+    const timer = setInterval(async () => {
+      try {
+        const [{ prisma }, { drainWebhookDeliveries }] = await Promise.all([
+          import("@/lib/prisma"),
+          import("@/lib/webhook-outbox"),
+        ]);
+        await drainWebhookDeliveries(prisma);
+      } catch {
+        // Недоставленный вебхук остаётся в outbox и будет повторён.
+      }
+    }, webhookEveryMs);
+    timer.unref?.();
+  }
 }

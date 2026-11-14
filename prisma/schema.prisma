@@ -255,15 +255,39 @@ model ApiKey {
 }
 
 model WebhookEndpoint {
-  id             String    @id @default(cuid())
+  id             String            @id @default(cuid())
   name           String
   url            String
   secret         String
-  events         String    @default("entry.published,entry.updated")
-  isActive       Boolean   @default(true)
+  events         String            @default("entry.published,entry.updated")
+  isActive       Boolean           @default(true)
   lastStatus     String?
   lastDeliveryAt DateTime?
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime          @default(now())
+  deliveries     WebhookDelivery[]
 
   @@index([isActive])
+}
+
+// Транзакционный outbox: событие и payload фиксируются в той же транзакции,
+// что и изменение записи. Доставка — отдельный шаг с lease, backoff и
+// потолком попыток; падение процесса не теряет событие.
+model WebhookDelivery {
+  id             String          @id @default(cuid())
+  endpointId     String
+  endpoint       WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event          String
+  payloadJson    String
+  status         String          @default("PENDING") // PENDING | DELIVERING | DELIVERED | FAILED
+  attempts       Int             @default(0)
+  nextAttemptAt  DateTime        @default(now())
+  lastAttemptAt  DateTime?
+  responseStatus Int?
+  error          String?
+  deliveredAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, createdAt])
 }

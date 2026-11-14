@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { fireWebhooks } from "@/lib/webhook";
+import { enqueueWebhooks, kickWebhookDrain } from "@/lib/webhook-outbox";
 import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 
 /**
@@ -13,9 +13,10 @@ import { buildEntrySnapshot } from "@/lib/entry-snapshot";
  * relations вырезаются, поэтому откат на эту ревизию восстанавливает
  * ровно то состояние, которое было на момент публикации.
  *
- * Вебхуки `entry.published` — только после коммита (fire-and-forget,
- * как в entry.publish). Время — явный параметр: тесты фиксируют `now`,
- * в проде передаётся `new Date()` (UTC, ISO-8601 в SQLite).
+ * Вебхуки `entry.published` ставятся в outbox в той же транзакции, что и
+ * публикация; сеть — отдельным drain после коммита. Время — явный параметр:
+ * тесты фиксируют `now`, в проде передаётся `new Date()` (UTC, ISO-8601
+ * в SQLite).
  */
 export async function publishDue(prisma: PrismaClient, now: Date = new Date()): Promise<string[]> {
   const published = await prisma.$transaction(async (tx) => {
@@ -57,20 +58,17 @@ export async function publishDue(prisma: PrismaClient, now: Date = new Date()): 
           comment: "Публикация по расписанию",
         },
       });
+      // Payload — та же форма, что у entry.publish: скаляры + блоки + теги.
+      await enqueueWebhooks(tx, "entry.published", {
+        ...e,
+        status: "PUBLISHED",
+        publishedAt: now,
+      });
       ids.push(e.id);
     }
     return ids;
   });
 
-  if (published.length > 0) {
-    const entries = await prisma.entry.findMany({
-      where: { id: { in: published } },
-      // Теги — часть контракта payload, как в entry.publish.
-      include: { blocks: true, tags: { include: { tag: true } } },
-    });
-    for (const entry of entries) {
-      fireWebhooks(prisma, "entry.published", entry);
-    }
-  }
+  if (published.length > 0) kickWebhookDrain(prisma);
   return published;
 }

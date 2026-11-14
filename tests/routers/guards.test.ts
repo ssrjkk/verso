@@ -1,4 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
+
+// Инварианты RBAC/транзакций проверяются без реального outbox: запись
+// вебхуков — отдельный контракт (entry-router + integration/webhook-outbox).
+vi.mock("@/lib/webhook-outbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/webhook-outbox")>();
+  return { ...actual, enqueueWebhooks: vi.fn(async () => 0), kickWebhookDrain: vi.fn() };
+});
+
 import { appRouter } from "@/server/routers/_app";
 
 type Role = "ADMIN" | "MANAGER" | "VIEWER";

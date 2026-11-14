@@ -209,34 +209,6 @@ export async function deliverWebhook(
   return { ok: status >= 200 && status < 300, status, ...(error ? { error } : {}) };
 }
 
-/**
- * Постановка доставки после коммита. Возвращает управление сразу:
- * публикация не ждёт сеть. lastStatus/lastDeliveryAt пишутся по факту.
- */
-export function fireWebhooks(prisma: PrismaClient, event: string, payload: unknown): void {
-  void (async () => {
-    try {
-      const endpoints = await prisma.webhookEndpoint.findMany({ where: { isActive: true } });
-      const targets = endpoints.filter((e) =>
-        e.events.split(",").map((s) => s.trim()).includes(event),
-      );
-      await Promise.allSettled(
-        targets.map(async (endpoint) => {
-          const result = await deliverWebhook(endpoint, event, payload);
-          await prisma.webhookEndpoint
-            .update({
-              where: { id: endpoint.id },
-              data: { lastStatus: String(result.status), lastDeliveryAt: new Date() },
-            })
-            .catch(() => undefined);
-        }),
-      );
-    } catch {
-      // вебхуки не должны ронять публикацию
-    }
-  })();
-}
-
 /** Кнопка «Тест»: та же защита, что и у обычной доставки. */
 export async function testWebhook(
   prisma: PrismaClient,

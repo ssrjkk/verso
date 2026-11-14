@@ -7,6 +7,7 @@ import { createServer, type Server } from "node:http";
 import type { PrismaClient } from "@prisma/client";
 import { createPrismaClient } from "@/lib/prisma-client";
 import { publishDue } from "@/lib/publish-due";
+import { drainWebhookDeliveries } from "@/lib/webhook-outbox";
 
 let dir = "";
 let prisma: PrismaClient;
@@ -164,6 +165,9 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
     expect(snapshot.blocks).toHaveLength(1);
     expect(snapshot.tags).toEqual([tag.name]);
 
+    // Фоновый kick мог уже забрать доставку; явный drain делает тест
+    // детерминированным (claim не даст отправить её дважды).
+    await drainWebhookDeliveries(prisma);
     await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
     expect(hits[0].event).toBe("entry.published");
     // Payload вебхука должен совпадать по форме с entry.publish — с тегами.
@@ -171,8 +175,8 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
       data: { tags?: Array<{ tag: { name: string } }> };
     };
     expect(payload.data.tags?.[0]?.tag.name).toBe(tag.name);
-    // lastStatus пишется после HTTP-ответа (fire-and-forget): ждём запись в БД,
-    // а не читаем однократно — иначе гонка между echo-хитом и update.
+    // lastStatus пишется после HTTP-ответа; ждём запись в БД, а не читаем
+    // однократно — иначе гонка между echo-хитом и update.
     await expect
       .poll(async () => (await prisma.webhookEndpoint.findFirst())?.lastStatus, { timeout: 5000 })
       .toBe("200");
@@ -219,11 +223,12 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
     });
 
     expect(await publishDue(prisma, now)).toEqual([id]);
+    await drainWebhookDeliveries(prisma);
     await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
 
     expect(await publishDue(prisma, now)).toEqual([]);
     expect(await prisma.revision.count({ where: { entryId: id } })).toBe(1);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await drainWebhookDeliveries(prisma);
     expect(hits).toHaveLength(1);
   });
 
@@ -240,8 +245,9 @@ describe("publishDue (real SQLite + real echo webhook)", () => {
     expect(a.length + b.length, "запись опубликована ровно одним прогоном").toBe(1);
 
     expect(await prisma.revision.count({ where: { entryId: id } })).toBe(1);
+    await drainWebhookDeliveries(prisma);
     await expect.poll(() => hits.length, { timeout: 5000 }).toBe(1);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await drainWebhookDeliveries(prisma);
     expect(hits, "второй прогон не досылает").toHaveLength(1);
   }, 30000);
 });
