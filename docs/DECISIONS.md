@@ -409,3 +409,56 @@ open redirect.
 **Цена.** Секрет вебхука нельзя прочитать после создания — только задать
 новый. `setTags` делает дополнительное чтение записи в транзакции, зато не
 плодит шум в истории. Время хранится в UTC, отображается в TZ браузера.
+
+### 18. Надёжность SQLite: миграции, индексы и PRAGMA
+
+**Контекст.** Схема жила через `prisma db push`: на чистой машине это
+работало, но не давало истории изменений, проверяемого апгрейда существующей
+БД и отката. Индексы были только у `Entry(status, publishedAt)`,
+`PageBlock(entryId, order)` и `Revision(entryId, version)`, хотя дашборд
+сортирует по `updatedAt`, планировщик ищет `SCHEDULED` по `scheduledFor`, а
+лента activity — по `entryId + createdAt`. SQLite-соединение не задавало
+явно `journal_mode`, `synchronous` и `foreign_keys`: поведение зависело от
+сборки better-sqlite3 и окружения.
+
+**Решение.**
+- `prisma/migrations/20261114000000_baseline` — снимок текущей схемы
+  (`migrate diff --from-empty`), `20261114000100_indexes` — только
+  `CREATE INDEX`. Обе миграции применяются через `prisma migrate deploy`.
+  Существующая БД (например, локальный `dev.db`) получает baseline через
+  `migrate resolve --applied` только после проверки, что diff до текущей
+  схемы содержит лишь `CREATE INDEX` из индексной миграции (иначе — drift).
+- Индексы добавлены под реальные запросы: `Entry(status, scheduledFor)` для
+  `publishDue`; `Entry(collectionId, status, updatedAt)` и
+  `Entry(collectionId, updatedAt)` для списков/CSV; `Entry(updatedAt)` для
+  календаря; `Entry(stageId)` для канбана; `Entry(collectionId, status,
+  publishedAt)` для публичной выдачи; `EntryTag(tagId)`;
+  `ActivityLog(entryId, createdAt)`; `EditorialTask(dueDate/entryId/
+  assigneeId)`; `MediaAsset(folder, createdAt)`; auth-таблицы по `userId`,
+  `providerId+accountId`, `identifier`; `WebhookEndpoint(isActive)`.
+- `src/lib/prisma-client.ts` оборачивает адаптер и выполняет на открытом
+  соединении `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`,
+  `busy_timeout=5000` до первого запроса. Тесты используют ту же фабрику, а
+  не отдельный `new PrismaClient`, поэтому проверяют production-поведение.
+- `db:migrate` = `prisma migrate deploy`; `db:migrate:check` сравнивает
+  историю миграций со `schema.prisma` и падает при drift. `db:push` остаётся
+  только для быстрых локальных экспериментов и не используется в CI/e2e.
+  CI применяет миграции на чистой БД и проверяет drift перед полным гейтом.
+  Инструкции по backup/restore, cron и обновлению — в `docs/DEPLOYMENT.md`.
+
+**Почему.** Миграции превращают обновление из «надеюсь, `db push` угадает»
+в воспроизводимую операцию с журналом. Индексы без привязки к запросам —
+налог на запись; выбранные покрывают горячие пути. WAL даёт читателям не
+блокировать писателя во время публикации, `NORMAL` остаётся безопасным для
+WAL, явный `foreign_keys=ON` гарантирует каскады независимо от сборки
+драйвера, а `busy_timeout` превращает краткую блокировку в ожидание, а не в
+`SQLITE_BUSY`.
+
+**Цена.** Появилась дисциплина миграций: изменение `schema.prisma` без
+`migrate dev --create-only` больше не доедет до БД (тесты на чистой БД это
+поймают). WAL создаёт `-wal`/`-shm` рядом с БД — копировать только `.db`
+недостаточно, нужен `sqlite3 .backup` или остановка процесса. Индексы
+замедляют вставку/обновление записей и занимают место; при росте данных
+стоит пересмотреть `Entry`-индексы по фактическому плану запросов.
+`db:push` и `migrate deploy` нельзя смешивать на одной БД: после `db push`
+`migrate deploy` увидит drift и откажется работать.

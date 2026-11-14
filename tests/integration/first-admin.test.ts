@@ -3,28 +3,23 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/lib/prisma-client";
 import { applySignupRolePolicy } from "@/lib/first-admin";
 
 let dir = "";
 let prisma: PrismaClient;
 
-function clientFor(file: string) {
-  const adapter = new PrismaBetterSqlite3({ url: `file:${file}` });
-  return new PrismaClient({ adapter });
-}
-
 beforeAll(
   async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "verso-firstadmin-"));
     const dbFile = path.join(dir, "test.db").replace(/\\/g, "/");
-    execSync("npx prisma db push", {
+    execSync("npx prisma migrate deploy", {
       cwd: process.cwd(),
       env: { ...process.env, DATABASE_URL: `file:${dbFile}` },
       stdio: "pipe",
     });
-    prisma = clientFor(dbFile);
+    prisma = createPrismaClient(`file:${dbFile}`);
     await prisma.$connect();
   },
   180000,

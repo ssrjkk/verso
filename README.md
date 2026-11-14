@@ -39,6 +39,7 @@
 - **Планировщик:** условный статусный флип в транзакции → параллельный запуск даёт ровно 1 ревизию / 1 вебхук на запись.
 - **A11y:** проверка axe `0 serious/critical` на ключевых страницах в light/dark, контраст ≥ 4.5:1 для обычного текста, видимое фокус-кольцо, клавиатурные сценарии (в т.ч. DnD), скриншотные проверки в e2e.
 - **Базовые headers:** `nosniff`, `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN` (+ `sandbox` для uploads), `poweredByHeader: false`.
+- **SQLite:** миграции с baseline вместо `db push`, индексы под горячие запросы, `WAL` + `synchronous=NORMAL` + `foreign_keys=ON` + `busy_timeout=5000`; backup/restore и обновление — в [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 Подробности и компромиссы — в [`docs/DECISIONS.md`](docs/DECISIONS.md) (проблема → решение → почему → цена).
 
@@ -49,7 +50,7 @@
 ```bash
 cp .env.example .env
 npm ci              # или npm install
-npm run db:push     # применить схему Prisma
+npm run db:migrate  # применить миграции Prisma
 npm run db:seed     # демо-данные и пользователи
 npm run dev         # http://localhost:3000
 ```
@@ -99,16 +100,18 @@ npm run dev         # http://localhost:3000
 | `npm test` | Vitest (unit/integration) |
 | `npm run test:e2e` | Playwright (e2e, свой `e2e.db`, fresh-build guard) |
 | `npm run test:all` | **Полный гейт:** typecheck + vitest + build + e2e (как в CI) |
-| `npm run db:push` | Синхронизация схемы Prisma |
+| `npm run db:migrate` | `prisma migrate deploy` — применить миграции (dev/prod/CI) |
+| `npm run db:migrate:dev` | `prisma migrate dev` — создать миграцию локально |
+| `npm run db:migrate:check` | Проверка drift: миграции должны совпадать со `schema.prisma` |
+| `npm run db:push` | Быстрая синхронизация схемы **только для экспериментов**; не для CI/деплоя |
 | `npm run db:seed` | Сид демо-данных (с `prisma generate` в pre-hook; на production требует `SEED_ALLOW=1`) |
 | `npm run db:studio` | Prisma Studio |
 
 ## Тестирование и CI
 
-- **Vitest:** 53 файла / 566 тестов (в т.ч. интеграции на реальном SQLite, SSRF/redirect/scheduler/auth/upload контракты).
+- **Vitest:** 54 файла / 569 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, SSRF/redirect/scheduler/auth/upload контракты).
 - **Playwright:** 39 e2e-файлов / 83 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
-- **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`.  
-  Локально воспроизводится тем же `npm run test:all`.
+- **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npx prisma migrate deploy` → `npm run db:migrate:check` → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`. Локально воспроизводится тем же `npm run test:all` (e2e сам поднимает `e2e.db` миграциями).
 
 ## Структура (ориентир)
 
@@ -116,13 +119,14 @@ npm run dev         # http://localhost:3000
 src/
   app/                 # App Router: (auth), (dashboard), api/*, robots, sitemap, boundaries
   components/          # UI, блоки конструктора, dashboard-компоненты
-  lib/                 # prisma, auth, roles, webhook, redirects, publish-due, upload, rate-limit, sitemap-data
+  lib/                 # prisma/prisma-client, auth, roles, webhook, redirects, publish-due, upload, rate-limit
   server/              # tRPC routers + context/procedures
   proxy.ts             # auth + SEO redirects (до рендера)
   instrumentation.ts   # опциональный тик publishDue
-prisma/                # schema, seed, migrations/config
+prisma/                # schema, seed, migrations, config
 tests/                 # vitest + e2e (playwright)
 docs/DECISIONS.md      # ADR-журнал
+docs/DEPLOYMENT.md     # деплой, backup/restore, обновление SQLite
 ```
 
 ## Решения и компромиссы

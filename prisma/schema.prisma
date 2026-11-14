@@ -34,6 +34,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {
@@ -51,6 +53,9 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([providerId, accountId])
 }
 
 model Verification {
@@ -60,6 +65,8 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
 }
 
 // ─── КОНТЕНТ-ЯДРО И КОЛЛЕКЦИИ ───────────────────────────────────────────────
@@ -87,40 +94,47 @@ model WorkflowStage {
 }
 
 model Entry {
-  id              String         @id @default(cuid())
-  collectionId    String
-  collection      Collection     @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 
-  title           String
-  slug            String
-  excerpt         String?
-  status          String         @default("DRAFT") // DRAFT | IN_REVIEW | SCHEDULED | PUBLISHED | ARCHIVED
-  fieldsJson      String         @default("{}")
+  title      String
+  slug       String
+  excerpt    String?
+  status     String  @default("DRAFT") // DRAFT | IN_REVIEW | SCHEDULED | PUBLISHED | ARCHIVED
+  fieldsJson String  @default("{}")
 
   // SEO & OpenGraph
-  seoTitle        String?
-  seoDescription  String?
-  ogImageUrl      String?
-  canonicalUrl    String?
-  noIndex         Boolean        @default(false)
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+  canonicalUrl   String?
+  noIndex        Boolean         @default(false)
   // Связь с Kanban-доской и автором
-  stageId         String?
-  stage           WorkflowStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
-  authorId        String
-  author          User           @relation("EntryAuthor", fields: [authorId], references: [id])
+  stageId        String?
+  stage          WorkflowStage?  @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  authorId       String
+  author         User            @relation("EntryAuthor", fields: [authorId], references: [id])
   // Интеграция с проектами Verso (1:1 по внешнему ID)
-  externalRefId    String?        @unique
-  publishedAt     DateTime?
-  scheduledFor    DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  blocks          PageBlock[]
-  revisions       Revision[]
-  tags            EntryTag[]
-  tasks           EditorialTask[]
-  activities      ActivityLog[]
+  externalRefId  String?         @unique
+  publishedAt    DateTime?
+  scheduledFor   DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  blocks         PageBlock[]
+  revisions      Revision[]
+  tags           EntryTag[]
+  tasks          EditorialTask[]
+  activities     ActivityLog[]
+
   @@unique([collectionId, slug])
   @@index([status, publishedAt])
+  @@index([status, scheduledFor])
+  @@index([collectionId, status, publishedAt])
+  @@index([collectionId, status, updatedAt])
+  @@index([collectionId, updatedAt])
+  @@index([stageId])
+  @@index([updatedAt])
 }
 
 // ─── БЛОЧНЫЙ КОНСТРУКТОР СТРАНИЦ (DND-KIT) ──────────────────────────────────
@@ -128,12 +142,13 @@ model PageBlock {
   id        String   @id @default(cuid())
   entryId   String
   entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  type      String   // HERO | FEATURES | PRICING | FAQ | RICH_TEXT | GALLERY | CODE | CTA
+  type      String // HERO | FEATURES | PRICING | FAQ | RICH_TEXT | GALLERY | CODE | CTA
   order     Int      @default(0)
   isVisible Boolean  @default(true)
   propsJson String   @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([entryId, order])
 }
 
@@ -148,6 +163,7 @@ model Revision {
   authorId     String
   author       User     @relation(fields: [authorId], references: [id])
   createdAt    DateTime @default(now())
+
   @@unique([entryId, version])
 }
 
@@ -163,7 +179,9 @@ model EntryTag {
   tagId   String
   entry   Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
   tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
   @@id([entryId, tagId])
+  @@index([tagId])
 }
 
 // ─── МЕДИАТЕКА, ЗАДАЧИ РЕДАКЦИИ И ИСТОРИЯ АКТИВНОСТЕЙ ───────────────────────
@@ -178,6 +196,8 @@ model MediaAsset {
   altText   String   @default("")
   folder    String   @default("root")
   createdAt DateTime @default(now())
+
+  @@index([folder, createdAt])
 }
 
 model EditorialTask {
@@ -193,6 +213,10 @@ model EditorialTask {
   assignee    User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([dueDate])
+  @@index([entryId])
+  @@index([assigneeId])
 }
 
 model ActivityLog {
@@ -204,6 +228,8 @@ model ActivityLog {
   action    String // CREATED | UPDATED | PUBLISHED | STAGE_CHANGED | RESTORED_REVISION
   comment   String?
   createdAt DateTime @default(now())
+
+  @@index([entryId, createdAt])
 }
 
 // ─── SEO-РЕДИРЕКТЫ, HEADLESS API И ВЕБХУКИ ──────────────────────────────────
@@ -238,4 +264,6 @@ model WebhookEndpoint {
   lastStatus     String?
   lastDeliveryAt DateTime?
   createdAt      DateTime  @default(now())
+
+  @@index([isActive])
 }

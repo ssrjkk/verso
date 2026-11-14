@@ -26,4 +26,8 @@ jobs:
       # ubuntu-latest уже содержит системные библиотеки Chromium; --with-deps
       # ходит в apt и валит job при недоступности archive.ubuntu.com.
       - run: npx playwright install chromium
+      # Свежая БД должна собираться миграциями, а не db push.
+      - run: npx prisma migrate deploy
+      # schema.prisma без миграции — это drift, который нельзя мержить.
+      - run: npm run db:migrate:check
       - run: npm run test:all

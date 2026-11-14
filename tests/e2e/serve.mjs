@@ -61,7 +61,7 @@ for (const f of ["e2e.db", "e2e.db-journal", "e2e.db-wal", "e2e.db-shm"]) {
   fs.rmSync(path.join(root, "prisma", f), { force: true });
 }
 
-run("npx", ["prisma", "db", "push"]);
+run("npx", ["prisma", "migrate", "deploy"]);
 run("npx", ["tsx", "prisma/seed.ts"]);
 
 const server = spawn("npx", ["next", "start", "-p", "3100"], { stdio: "inherit", shell: true });

@@ -4,8 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createServer, type Server } from "node:http";
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/lib/prisma-client";
 import { publishDue } from "@/lib/publish-due";
 
 let dir = "";
@@ -68,12 +68,12 @@ async function seedEntry(opts: {
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "verso-publish-due-"));
   const dbFile = path.join(dir, "test.db").replace(/\\/g, "/");
-  execSync("npx prisma db push", {
+  execSync("npx prisma migrate deploy", {
     cwd: process.cwd(),
     env: { ...process.env, DATABASE_URL: `file:${dbFile}` },
     stdio: "pipe",
   });
-  prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${dbFile}` }) });
+  prisma = createPrismaClient(`file:${dbFile}`);
   await prisma.$connect();
   savedAllowPrivate = process.env.WEBHOOK_ALLOW_PRIVATE;
   process.env.WEBHOOK_ALLOW_PRIVATE = "1";

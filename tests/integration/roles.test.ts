@@ -3,8 +3,8 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/lib/prisma-client";
 import {
   LastAdminError,
   OwnRoleChangeError,
@@ -30,12 +30,12 @@ async function user(role: "ADMIN" | "MANAGER" | "VIEWER") {
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "verso-roles-"));
   const dbFile = path.join(dir, "test.db").replace(/\\/g, "/");
-  execSync("npx prisma db push", {
+  execSync("npx prisma migrate deploy", {
     cwd: process.cwd(),
     env: { ...process.env, DATABASE_URL: `file:${dbFile}` },
     stdio: "pipe",
   });
-  prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${dbFile}` }) });
+  prisma = createPrismaClient(`file:${dbFile}`);
   await prisma.$connect();
 }, 180000);
 
