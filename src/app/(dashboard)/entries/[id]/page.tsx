@@ -54,6 +54,42 @@ function safeObject(propsJson: string, type: BlockType): Record<string, unknown>
   return parseProps<Record<string, unknown>>(propsJson, { ...(DEFAULT_BLOCKS[type] as object) } as Record<string, unknown>);
 }
 
+// Стабильный внешний источник времени. `getSnapshot` обязан возвращать одно
+// и то же значение между уведомлениями: `Date.now()` на каждый вызов даёт
+// бесконечный цикл рендеров (React error #185), особенно после раскрытия
+// редактора блока.
+let nowSnapshot = 0;
+let nowTimer: number | undefined;
+const nowSubscribers = new Set<() => void>();
+
+function subscribeNow(onStoreChange: () => void) {
+  nowSubscribers.add(onStoreChange);
+  if (nowTimer === undefined) {
+    nowSnapshot = Date.now();
+    nowTimer = window.setInterval(() => {
+      nowSnapshot = Date.now();
+      for (const notify of nowSubscribers) notify();
+    }, 60_000);
+  }
+  // После гидратации сразу отдаём актуальное время, не ждём минуту.
+  onStoreChange();
+  return () => {
+    nowSubscribers.delete(onStoreChange);
+    if (nowSubscribers.size === 0 && nowTimer !== undefined) {
+      window.clearInterval(nowTimer);
+      nowTimer = undefined;
+    }
+  };
+}
+
+function getNowSnapshot() {
+  return nowSnapshot;
+}
+
+function getServerNowSnapshot() {
+  return 0;
+}
+
 function SortableBlockRow({
   block,
   index,
@@ -73,6 +109,12 @@ function SortableBlockRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.cid });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+  // Парсим propsJson один раз на изменение: новый объект на каждом рендере
+  // ломает синхронизацию JSON-редакторов и провоцирует лишние обновления.
+  const props = useMemo(
+    () => safeObject(block.propsJson, block.type),
+    [block.propsJson, block.type],
+  );
 
   return (
     <div ref={setNodeRef} style={style} className="rounded-2xl border bg-white/60 dark:bg-white/5">
@@ -121,7 +163,7 @@ function SortableBlockRow({
       </div>
       {expanded ? (
         <div className="border-t p-3">
-          <BlockEditor type={block.type} value={safeObject(block.propsJson, block.type)} onChange={onPropsChange} />
+          <BlockEditor type={block.type} value={props} onChange={onPropsChange} />
         </div>
       ) : null}
     </div>
@@ -165,12 +207,9 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
   // Время — внешнее изменяемое состояние: обновляем раз в минуту и не
   // трогаем Date.now() во время рендера (SSR-снапшот = 0 до гидратации).
   const nowMs = useSyncExternalStore(
-    (onStoreChange) => {
-      const timer = window.setInterval(onStoreChange, 60_000);
-      return () => window.clearInterval(timer);
-    },
-    () => Date.now(),
-    () => 0,
+    subscribeNow,
+    getNowSnapshot,
+    getServerNowSnapshot,
   );
 
   function relativeTime(iso: string | Date): string {
