@@ -33,7 +33,7 @@
 
 - **Auth/roles:** роль не принимается от клиента; серверные guard’ы в tRPC (`protected`/`editor`/`admin`); UI не является границей доверия.
 - **Вебхуки:** только `http(s)`, запрет private/loopback/link-local/metadata по DNS+IP, переподключение к проверенному IP, ручные редиректы с перепроверкой, таймаут, без чтения тела. Флаг `WEBHOOK_ALLOW_PRIVATE=1` — только тестовый стенд; в прод-конфигурации процесс падает fail-fast.
-- **API:** ключи только в заголовках (никакого `?key=`), `lastUsedAt` с троттлингом, token-bucket лимиты (`/api/v1/*` и `/api/upload`, `429` + `Retry-After`).
+- **API:** ключи только в заголовках (никакого `?key=`), `lastUsedAt` с троттлингом, token-bucket лимиты (`/api/v1/*` и `/api/upload`, `429` + `Retry-After`); карта ведер ограничена 10k, чтобы флуд уникальных IP не раздувал память.
 - **Загрузки:** magic bytes, управляемые пути `/uploads/<folder>/<uuid>.<ext>`, реальные размеры; `media.create` не принимает произвольный URL/mime/size.
 - **Редиректы:** относительные безопасные пути, запрет open-redirect/циклов/длинных цепочек, исполнение в `src/proxy.ts`.
 - **Планировщик:** условный статусный флип в транзакции → параллельный запуск даёт ровно 1 ревизию / 1 вебхук на запись.
@@ -116,7 +116,7 @@ npm run dev         # http://localhost:3000
 
 ## Тестирование и CI
 
-- **Vitest:** 56 файлов / 589 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, health/SSRF/redirect/scheduler/auth/upload контракты).
+- **Vitest:** 56 файлов / 590 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, health/rate-limit/SSRF/redirect/scheduler/auth/upload контракты).
 - **Playwright:** 39 e2e-файлов / 84 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
 - **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npx prisma migrate deploy` → `npm run db:migrate:check` → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`. Локально воспроизводится тем же `npm run test:all` (e2e сам поднимает `e2e.db` миграциями).
 

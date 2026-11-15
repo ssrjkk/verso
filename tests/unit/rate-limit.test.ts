@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 const WINDOW = 60_000;
@@ -56,5 +56,18 @@ describe("token bucket", () => {
     expect(checkRateLimit("after-prune", { capacity: 1, windowMs: WINDOW }, WINDOW * 10).ok).toBe(
       true,
     );
+  });
+
+  it("жёсткий предел: активный флуд уникальных ключей вытесняет старые ведра", async () => {
+    vi.resetModules();
+    const { checkRateLimit: fresh } = await import("@/lib/rate-limit");
+
+    for (let i = 0; i < 10_002; i++) {
+      fresh(`flood-${i}`, { capacity: 1, windowMs: WINDOW }, 0);
+    }
+
+    // flood-0 был исчерпан и вытеснен; новый запрос получает свежий бюджет.
+    // Без жёсткого предела карта росла бы неограниченно, а ключ получал 429.
+    expect(fresh("flood-0", { capacity: 1, windowMs: WINDOW }, 0).ok).toBe(true);
   });
 });

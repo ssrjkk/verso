@@ -15,11 +15,23 @@ type Bucket = { tokens: number; updatedAt: number };
 const buckets = new Map<string, Bucket>();
 
 const MAX_BUCKETS = 10_000;
+// После жёсткой чистки оставляем запас, чтобы не сканировать карту на
+// каждом запросе, пока она снова не дорастёт до предела.
+const EVICT_TO = Math.floor(MAX_BUCKETS * 0.9);
 
 function prune(now: number, windowMs: number) {
   if (buckets.size <= MAX_BUCKETS) return;
   for (const [key, bucket] of buckets) {
     if (now - bucket.updatedAt > windowMs * 2) buckets.delete(key);
+  }
+  if (buckets.size <= MAX_BUCKETS) return;
+
+  // Все ведра ещё активны (например, флуд уникальных IP в одном окне).
+  // Удаляем самые старые: это fail-open только для вытесненных ключей и
+  // не даёт поддельным адресам раздувать память процесса без предела.
+  for (const key of buckets.keys()) {
+    buckets.delete(key);
+    if (buckets.size <= EVICT_TO) break;
   }
 }
 
