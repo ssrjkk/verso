@@ -6,7 +6,7 @@ import ErrorPage from "@/app/error";
 import GlobalError from "@/app/global-error";
 
 describe("статические страницы и error boundaries", () => {
-  it("лендинг: hero, шесть модулей, стек и CTA", () => {
+  it("лендинг: hero, шесть модулей, процесс, API и CTA", () => {
     const html = renderToStaticMarkup(<Home />);
 
     expect(html).toContain("Verso — контент");
@@ -21,6 +21,11 @@ describe("статические страницы и error boundaries", () => {
     ]) {
       expect(html).toContain(title);
     }
+    expect(html).toContain("От идеи до публикации");
+    expect(html).toContain("Контент — не только для этого сайта");
+    expect(html).toContain("at-least-once");
+    expect(html).toContain("/api/v1/posts");
+    expect(html).toContain("application/ld+json");
     expect(html).toContain("Next.js 16");
     expect(html).toContain('href="/dashboard"');
     expect(html).toContain('href="/sign-in"');

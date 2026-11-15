@@ -98,6 +98,8 @@ test.describe.serial("visual: страницы × вьюпорты × темы",
   for (const theme of THEMES) {
     for (const vp of VIEWPORTS) {
       test(`${theme} ${vp.label}: скриншоты без горизонтального переполнения`, async ({ browser }) => {
+        // 12 страниц × полный скриншот: на медленном CI 30 с мало.
+        test.setTimeout(90_000);
         for (const p of pages()) {
           const { ctx, page } = await themedPage(
             browser,
@@ -125,6 +127,7 @@ test.describe.serial("visual: страницы × вьюпорты × темы",
 
   for (const theme of THEMES) {
     test(`axe ${theme}: 0 serious/critical на всех страницах`, async ({ browser }) => {
+      test.setTimeout(90_000);
       const { ctx, page } = await themedPage(browser, theme, { w: 1440, h: 900 }, ADMIN);
       try {
         for (const p of pages()) {
@@ -139,10 +142,10 @@ test.describe.serial("visual: страницы × вьюпорты × темы",
           const blocking = results.violations.filter(
             (v) => v.impact === "serious" || v.impact === "critical",
           );
-          expect(
-            blocking.map((v) => `${v.id}(${v.impact}): ${v.nodes.length}`),
-            `${p.name} ${theme}: serious/critical`,
-          ).toEqual([]);
+          const details = blocking.flatMap((v) =>
+            v.nodes.map((n) => `${v.id}(${v.impact}): ${n.target.join(" ")}`),
+          );
+          expect(details, `${p.name} ${theme}: serious/critical`).toEqual([]);
         }
       } finally {
         await ctx.close();

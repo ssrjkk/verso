@@ -25,6 +25,28 @@ body {
 }
 h1, h2, h3, .font-display { font-family: var(--font-display); }
 
+/* Лендинг: сетка-«миллиметровка» и мягкий парящий макет. */
+.landing-grid {
+  background-image:
+    linear-gradient(to right, rgb(120 113 108 / 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(120 113 108 / 0.1) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent);
+}
+.dark .landing-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+}
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.landing-float { animation: landing-float 8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .landing-float { animation: none; }
+}
+
 @media print {
   .no-print { display: none !important; }
   .print-clean { box-shadow: none !important; border: none !important; }

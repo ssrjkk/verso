@@ -18,4 +18,13 @@ describe("ThemeToggle: серверный рендер", () => {
     expect(html).toContain('aria-label="Переключить тему"');
     expect(mocks.setTheme).not.toHaveBeenCalled();
   });
+
+  it("compact: иконка без текста, но с доступным именем", () => {
+    const html = renderToStaticMarkup(<ThemeToggle compact />);
+
+    expect(html).toContain('aria-label="Переключить тему"');
+    expect(html).toContain("disabled");
+    expect(html).not.toContain("Тема: …");
+    expect(mocks.setTheme).not.toHaveBeenCalled();
+  });
 });
