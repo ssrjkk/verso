@@ -20,6 +20,7 @@ export default function SettingsPage() {
       // lastStatus/lastDeliveryAt пишутся сервером до ответа mutation —
       // инвалидация сразу подтягивает их в строку endpoint'а.
       void utils.webhook.list.invalidate();
+      void utils.webhook.deliveries.invalidate();
     },
   });
 
@@ -33,6 +34,9 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
   const { data: users } = trpc.user.list.useQuery(undefined, { enabled: isAdmin });
+  const { data: deliveries = [] } = trpc.webhook.deliveries.useQuery(undefined, {
+    enabled: isAdmin,
+  });
   const setRole = trpc.user.setRole.useMutation({
     onSuccess: () => utils.user.list.invalidate(),
     onError: (e) => setUserError(e.message),
@@ -128,6 +132,51 @@ export default function SettingsPage() {
           </div>
         ))}
       </section>
+
+      {isAdmin && (
+        <section className="flex flex-col gap-3" aria-label="Доставки вебхуков">
+          <h2 className="font-display text-xl font-extrabold">Последние доставки</h2>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <p className="opacity-70">
+              Статус outbox: PENDING/DELIVERING ждут повтора, FAILED — попытки исчерпаны.
+            </p>
+            <button
+              type="button"
+              onClick={() => void utils.webhook.deliveries.invalidate()}
+              className="rounded-lg border px-2 py-1 font-semibold hover:border-[#f97316]"
+            >
+              Обновить
+            </button>
+          </div>
+          {deliveries.length === 0 ? (
+            <p className="text-sm opacity-70">Доставок пока нет.</p>
+          ) : (
+            deliveries.map((d) => (
+              <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+                <span className="break-all">
+                  {new Date(d.createdAt).toLocaleString()} · {d.endpoint.name} · {d.event} ·{" "}
+                  <span
+                    className={
+                      d.status === "FAILED"
+                        ? "font-semibold text-red-600 dark:text-red-500"
+                        : d.status === "DELIVERED"
+                          ? "text-green-700 dark:text-green-500"
+                          : "font-semibold"
+                    }
+                  >
+                    {d.status}
+                  </span>{" "}
+                  · попыток {d.attempts}
+                  {d.responseStatus ? ` · HTTP ${d.responseStatus}` : ""}
+                </span>
+                {d.error && (
+                  <span className="w-full break-all text-xs text-red-600 dark:text-red-500">{d.error}</span>
+                )}
+              </div>
+            ))
+          )}
+        </section>
+      )}
 
       {isAdmin && (
         <section className="flex flex-col gap-4" aria-label="Пользователи">

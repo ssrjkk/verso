@@ -10,6 +10,7 @@ import { createPrismaClient } from "@/lib/prisma-client";
 import {
   drainWebhookDeliveries,
   enqueueWebhooks,
+  pruneWebhookDeliveries,
 } from "@/lib/webhook-outbox";
 
 type Hit = { path: string; event: string; sign: string; body: string };
@@ -316,5 +317,37 @@ describe("webhook outbox", () => {
     await enqueueWebhooks(prisma, "entry.published", { id: "e1" });
     await prisma.webhookEndpoint.delete({ where: { id: endpoint.id } });
     expect(await prisma.webhookDelivery.count()).toBe(0);
+  });
+
+  it("prune: удаляет только терминальные доставки старше retention", async () => {
+    const endpoint = await createEndpoint({ port: await echoServer() });
+    const now = new Date("2026-06-01T12:00:00.000Z");
+    const old = new Date(now.getTime() - 31 * 86_400_000);
+    const recent = new Date(now.getTime() - 86_400_000);
+    const base = {
+      endpointId: endpoint.id,
+      event: "entry.published",
+      payloadJson: "{}",
+    };
+    await prisma.webhookDelivery.createMany({
+      data: [
+        { ...base, status: "DELIVERED", nextAttemptAt: old },
+        { ...base, status: "FAILED", nextAttemptAt: old },
+        { ...base, status: "PENDING", nextAttemptAt: old },
+        { ...base, status: "DELIVERING", nextAttemptAt: old },
+        { ...base, status: "DELIVERED", nextAttemptAt: recent },
+      ],
+    });
+
+    // 0 — бессрочное хранение, ничего не удаляем.
+    expect(await pruneWebhookDeliveries(prisma, { now, retentionDays: 0 })).toBe(0);
+    expect(await pruneWebhookDeliveries(prisma, { now, retentionDays: 30 })).toBe(2);
+
+    const left = await prisma.webhookDelivery.findMany({ select: { status: true } });
+    expect(left.map((row) => row.status).sort()).toEqual([
+      "DELIVERED",
+      "DELIVERING",
+      "PENDING",
+    ]);
   });
 });

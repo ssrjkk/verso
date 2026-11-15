@@ -246,6 +246,23 @@ const WEBHOOK_SAFE_SELECT = {
   createdAt: true,
 } as const;
 
+// Payload не отдаём: это полный снимок записи, для диагностики достаточно
+// статуса, числа попыток, HTTP-кода и текста ошибки.
+const WEBHOOK_DELIVERY_SAFE_SELECT = {
+  id: true,
+  endpointId: true,
+  event: true,
+  status: true,
+  attempts: true,
+  nextAttemptAt: true,
+  lastAttemptAt: true,
+  responseStatus: true,
+  error: true,
+  deliveredAt: true,
+  createdAt: true,
+  endpoint: { select: { name: true } },
+} as const;
+
 export const webhookRouter = createTRPCRouter({
   list: adminProcedure.query(({ ctx }) =>
     ctx.prisma.webhookEndpoint.findMany({
@@ -309,4 +326,25 @@ export const webhookRouter = createTRPCRouter({
       if (!endpoint) throw new TRPCError({ code: "NOT_FOUND", message: "Вебхук не найден" });
       return testWebhook(ctx.prisma, endpoint);
     }),
+  // Последние доставки outbox для диагностики в админке. Только чтение:
+  // повторная отправка — задача drain-тика/cron, а не UI.
+  deliveries: adminProcedure
+    .input(
+      z.object({
+        endpointId: z.string().optional(),
+        status: z.enum(["PENDING", "DELIVERING", "DELIVERED", "FAILED"]).optional(),
+        limit: z.number().int().min(1).max(100).default(20),
+      }).default({ limit: 20 }),
+    )
+    .query(({ ctx, input }) =>
+      ctx.prisma.webhookDelivery.findMany({
+        where: {
+          ...(input.endpointId ? { endpointId: input.endpointId } : {}),
+          ...(input.status ? { status: input.status } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+        select: WEBHOOK_DELIVERY_SAFE_SELECT,
+      }),
+    ),
 });

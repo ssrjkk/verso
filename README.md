@@ -78,6 +78,7 @@ npm run dev         # http://localhost:3000
 | `PUBLISH_DUE_TICK_MS` | Интервал самопубликации, мс (опционально; по умолчанию выключен) |
 | `WEBHOOK_DRAIN_TICK_MS` | Интервал доставки outbox, мс (по умолчанию `60000`; `0` выключает тик) |
 | `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_BASE_BACKOFF_MS`, `WEBHOOK_LEASE_MS`, `WEBHOOK_DRAIN_BATCH` | Настройки повторов и пачки outbox (по умолчанию 8 попыток, 60 с, 10 мин, 50) |
+| `WEBHOOK_RETENTION_DAYS` | Сколько дней хранить `DELIVERED`/`FAILED` (по умолчанию 30; `0` — бессрочно) |
 | `AUTH_RATELIMIT=off` | **Только e2e/throwaway-БД:** отключает rate-limit входов (проверку секрета не ослабляет) |
 | `VERSO_TEST_HARNESS=1` | **Только e2e/throwaway-БД:** разрешает короткий/демо-секрет и `WEBHOOK_ALLOW_PRIVATE`; в проде небезопасен |
 | `WEBHOOK_ALLOW_PRIVATE=1` | **Только e2e** (требует `VERSO_TEST_HARNESS=1`); в прод-конфигурации — fail-fast |
@@ -90,8 +91,8 @@ npm run dev         # http://localhost:3000
 - **Cron publish:** `POST /api/cron/publish-due`  
   Заголовок: `Authorization: Bearer ${CRON_SECRET}`. Идемпотентно публикует просроченные `SCHEDULED`.
 - **Cron webhooks:** `POST /api/cron/webhooks`
-  Тот же Bearer-секрет. Добирает созревшие доставки outbox и возвращает `{claimed, delivered, retried, failed}`.
-- **Webhooks:** события `entry.published`, `entry.updated`; доставка at-least-once из транзакционного outbox, статусы и ошибки последней попытки сохраняются (без логирования секретов/приватных адресов в пользовательском UI).
+  Тот же Bearer-секрет. Добирает созревшие доставки outbox и возвращает `{claimed, delivered, retried, failed, pruned}`.
+- **Webhooks:** события `entry.published`, `entry.updated`; доставка at-least-once из транзакционного outbox, статусы и ошибки последней попытки сохраняются (без логирования секретов/приватных адресов в пользовательском UI). ADMIN видит последние доставки в настройках: статус, число попыток, HTTP-код и текст ошибки (payload и секреты не отдаются).
 - **Sitemap:** `/sitemap.xml` (канонический) и совместимый `/api/sitemap.xml`; `robots.txt` запрещает приватные разделы.
 
 ## Скрипты
@@ -114,7 +115,7 @@ npm run dev         # http://localhost:3000
 
 ## Тестирование и CI
 
-- **Vitest:** 55 файлов / 583 теста (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, SSRF/redirect/scheduler/auth/upload контракты).
+- **Vitest:** 55 файлов / 586 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, SSRF/redirect/scheduler/auth/upload контракты).
 - **Playwright:** 39 e2e-файлов / 83 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
 - **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npx prisma migrate deploy` → `npm run db:migrate:check` → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`. Локально воспроизводится тем же `npm run test:all` (e2e сам поднимает `e2e.db` миграциями).
 

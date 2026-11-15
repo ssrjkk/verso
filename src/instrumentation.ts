@@ -50,11 +50,14 @@ export function register() {
   if (webhookEveryMs > 0) {
     const timer = setInterval(async () => {
       try {
-        const [{ prisma }, { drainWebhookDeliveries }] = await Promise.all([
-          import("@/lib/prisma"),
-          import("@/lib/webhook-outbox"),
-        ]);
+        const [{ prisma }, { drainWebhookDeliveries, maybePruneWebhookDeliveries }] =
+          await Promise.all([
+            import("@/lib/prisma"),
+            import("@/lib/webhook-outbox"),
+          ]);
         await drainWebhookDeliveries(prisma);
+        // Терминальные доставки не копятся вечно; внутри — не чаще 6 часов.
+        await maybePruneWebhookDeliveries(prisma);
       } catch {
         // Недоставленный вебхук остаётся в outbox и будет повторён.
       }

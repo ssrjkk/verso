@@ -40,12 +40,66 @@ const DEFAULT_LEASE_MS = 10 * 60_000;
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BACKOFF_MS = 6 * 60 * 60_000;
 const MAX_ERROR_LENGTH = 1000;
+const DEFAULT_RETENTION_DAYS = 30;
+const PRUNE_INTERVAL_MS = 6 * 60 * 60_000;
 
 function envNumber(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+function retentionDaysFromEnv(): number {
+  const raw = process.env.WEBHOOK_RETENTION_DAYS;
+  if (raw === undefined || raw.trim() === "") return DEFAULT_RETENTION_DAYS;
+  const value = Number(raw);
+  if (Number.isFinite(value) && value >= 0) return Math.floor(value);
+  // Опечатка не должна молча отключать очистку: работаем по дефолту.
+  console.warn(
+    `[webhook-outbox] Некорректный WEBHOOK_RETENTION_DAYS "${raw}", использую ${DEFAULT_RETENTION_DAYS}`,
+  );
+  return DEFAULT_RETENTION_DAYS;
+}
+
+/**
+ * Удаляет терминальные доставки старше retention. У `DELIVERED`/`FAILED`
+ * `nextAttemptAt` равен времени завершения, поэтому выборку покрывает
+ * индекс `(status, nextAttemptAt)`. `WEBHOOK_RETENTION_DAYS=0` выключает
+ * очистку; пустое или некорректное значение — дефолт 30 дней.
+ */
+export async function pruneWebhookDeliveries(
+  prisma: PrismaClient,
+  options: { now?: Date; retentionDays?: number } = {},
+): Promise<number> {
+  const now = options.now ?? new Date();
+  const retentionDays = options.retentionDays ?? retentionDaysFromEnv();
+  if (retentionDays <= 0) return 0;
+
+  const cutoff = new Date(now.getTime() - retentionDays * 86_400_000);
+  const result = await prisma.webhookDelivery.deleteMany({
+    where: {
+      status: { in: ["DELIVERED", "FAILED"] },
+      nextAttemptAt: { lt: cutoff },
+    },
+  });
+  return result.count;
+}
+
+let lastPruneAt = 0;
+
+/**
+ * Чистит outbox не чаще раза в 6 часов на процесс. Вызывается из тика
+ * доставки и cron-маршрута; параллельные инстансы могут чистить
+ * одновременно — `DELETE` идемпотентен.
+ */
+export async function maybePruneWebhookDeliveries(
+  prisma: PrismaClient,
+  now: Date = new Date(),
+): Promise<number> {
+  if (now.getTime() - lastPruneAt < PRUNE_INTERVAL_MS) return 0;
+  lastPruneAt = now.getTime();
+  return pruneWebhookDeliveries(prisma, { now });
 }
 
 type EnqueueClient = PrismaClient | Prisma.TransactionClient;

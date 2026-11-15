@@ -24,6 +24,22 @@ const WEBHOOK_SAFE_SELECT = {
   createdAt: true,
 };
 
+// Ответ webhook.deliveries: только диагностика, без payload и секретов.
+const WEBHOOK_DELIVERY_SAFE_SELECT = {
+  id: true,
+  endpointId: true,
+  event: true,
+  status: true,
+  attempts: true,
+  nextAttemptAt: true,
+  lastAttemptAt: true,
+  responseStatus: true,
+  error: true,
+  deliveredAt: true,
+  createdAt: true,
+  endpoint: { select: { name: true } },
+};
+
 function makeDb() {
   const db = {
     pageBlock: {
@@ -101,6 +117,9 @@ function makeDb() {
         lastDeliveryAt: null,
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       })),
+    },
+    webhookDelivery: {
+      findMany: vi.fn(async () => []),
     },
   };
   return { ...db, $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)) };
@@ -459,5 +478,36 @@ describe("webhook router", () => {
       status: 200,
     });
     expect(hooks.testWebhook).toHaveBeenCalledWith(db, endpoint);
+  });
+
+  it("deliveries: фильтры, лимит и только безопасные поля", async () => {
+    await caller("ADMIN", db).webhook.deliveries({
+      endpointId: "w1",
+      status: "FAILED",
+      limit: 5,
+    });
+    expect(db.webhookDelivery.findMany).toHaveBeenCalledWith({
+      where: { endpointId: "w1", status: "FAILED" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: WEBHOOK_DELIVERY_SAFE_SELECT,
+    });
+    expect(WEBHOOK_DELIVERY_SAFE_SELECT).not.toHaveProperty("payloadJson");
+    expect(WEBHOOK_DELIVERY_SAFE_SELECT).not.toHaveProperty("secret");
+  });
+
+  it("deliveries: по умолчанию 20 последних; MANAGER -> FORBIDDEN", async () => {
+    await caller("ADMIN", db).webhook.deliveries();
+    expect(db.webhookDelivery.findMany).toHaveBeenCalledWith({
+      where: {},
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: WEBHOOK_DELIVERY_SAFE_SELECT,
+    });
+
+    await expect(
+      caller("MANAGER", db).webhook.deliveries({ status: "PENDING" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(db.webhookDelivery.findMany).toHaveBeenCalledTimes(1);
   });
 });
