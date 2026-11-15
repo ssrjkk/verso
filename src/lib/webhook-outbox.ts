@@ -86,7 +86,7 @@ export async function pruneWebhookDeliveries(
   return result.count;
 }
 
-let lastPruneAt = 0;
+let lastPruneAt = Number.NEGATIVE_INFINITY;
 
 /**
  * Чистит outbox не чаще раза в 6 часов на процесс. Вызывается из тика
@@ -98,8 +98,11 @@ export async function maybePruneWebhookDeliveries(
   now: Date = new Date(),
 ): Promise<number> {
   if (now.getTime() - lastPruneAt < PRUNE_INTERVAL_MS) return 0;
+  const pruned = await pruneWebhookDeliveries(prisma, { now });
+  // Фиксируем попытку только после успеха: временная ошибка БД не должна
+  // отключать очистку на следующие 6 часов.
   lastPruneAt = now.getTime();
-  return pruneWebhookDeliveries(prisma, { now });
+  return pruned;
 }
 
 type EnqueueClient = PrismaClient | Prisma.TransactionClient;
