@@ -86,8 +86,9 @@ npm run start               # по умолчанию порт 3000
    npx prisma migrate deploy
    npm run build
    ```
-4. Перезапустите процесс и проверьте `GET /`, вход, `POST /api/cron/publish-due`
-   и `POST /api/cron/webhooks` с боевым `CRON_SECRET`.
+4. Перезапустите процесс и проверьте `GET /`, `GET /api/health`, вход,
+   `POST /api/cron/publish-due` и `POST /api/cron/webhooks` с боевым
+   `CRON_SECRET`.
 5. Если миграция сломала совместимость — откатывайтесь на предыдущий код и
    восстанавливайте БД из backup. Автоматического `down` у Prisma Migrate нет.
 
@@ -234,6 +235,13 @@ backup + retention 7–30 дней; для активной редакции —
 
 ## 7. Мониторинг и обслуживание
 
+- **Health-проба:** `GET /api/health` выполняет `SELECT 1` и возвращает
+  `200 {"status":"ok","checks":{"database":"ok"}}` либо
+  `503 {"status":"degraded","checks":{"database":"down"}}` без текста ошибки,
+  версий и путей. Ответ всегда `Cache-Control: no-store`. Настраивайте
+  балансировщик/uptime-монитор на этот маршрут и считайте `503` поводом для
+  алерта: приложение без SQLite не обслуживает запросы. Проба не проверяет
+  uploads, cron и внешние получателей вебхуков — для них отдельные метрики.
 - Свободное место на диске: SQLite пишет WAL, uploads и outbox растут
   независимо.
 - Успешность backup и `PRAGMA integrity_check` (например, раз в неделю на

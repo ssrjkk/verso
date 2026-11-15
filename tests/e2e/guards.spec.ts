@@ -6,6 +6,13 @@ test("v1 without key -> 401 JSON", async ({ request }) => {
   expect(await r.json()).toEqual({ error: "Unauthorized" });
 });
 
+test("health -> 200 ok with no-store", async ({ request }) => {
+  const r = await request.get("/api/health");
+  expect(r.status()).toBe(200);
+  expect(r.headers()["cache-control"]).toBe("no-store");
+  expect(await r.json()).toEqual({ status: "ok", checks: { database: "ok" } });
+});
+
 test("sitemap -> 200 xml", async ({ request }) => {
   const r = await request.get("/api/sitemap.xml");
   expect(r.status()).toBe(200);
