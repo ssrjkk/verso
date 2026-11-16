@@ -89,7 +89,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.5",
     "jsdom": "^27.4.0",
