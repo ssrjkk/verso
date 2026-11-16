@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { slugify } from "@/lib/slug";
 import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 
 const CreateBody = z.object({
   title: z.string().trim().min(1).max(300),
@@ -21,15 +22,6 @@ const V1_WINDOW_MS = 60_000;
 // lastUsedAt — телеметрия, а не часы: перезапись не чаще раза в минуту,
 // чтобы каждый GET не дёргал строку ключа.
 const TOUCH_THROTTLE_MS = 60_000;
-
-function clientIp(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
-}
 
 function extractRawKey(req: NextRequest): string | null {
   // Только заголовки. ?key= удалён осознанно: ключ в query оседает
@@ -56,7 +48,7 @@ async function checkKey(req: NextRequest) {
 }
 
 function limited(req: NextRequest) {
-  const verdict = checkRateLimit(`v1:${clientIp(req)}`, {
+  const verdict = checkRateLimit(`v1:${getClientIp(req.headers)}`, {
     capacity: V1_CAPACITY,
     windowMs: V1_WINDOW_MS,
   });

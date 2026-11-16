@@ -11,6 +11,7 @@ import {
 } from "@/lib/upload-validation";
 import { removeManagedUpload } from "@/lib/media-files";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 
 // Загрузки — дорогая операция (диск + БД): 60/минуту на пользователя.
 // Отдельный бюджет от Headless API, чтобы импорт медиа не душил интеграции.
@@ -19,9 +20,7 @@ const UPLOAD_WINDOW_MS = 60_000;
 
 function identityOf(req: NextRequest, userId: string | undefined): string {
   if (userId) return `upload:user:${userId}`;
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip")?.trim() || "unknown";
-  return `upload:ip:${ip}`;
+  return `upload:ip:${getClientIp(req.headers)}`;
 }
 
 function sanitizeFolder(folder: string | null): string {

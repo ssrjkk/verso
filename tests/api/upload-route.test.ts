@@ -86,7 +86,11 @@ describe("POST /api/upload", () => {
     expect(limiter.checkRateLimit).toHaveBeenCalledWith("upload:user:u1", expect.any(Object));
 
     authMock.getSession.mockResolvedValue(session("ADMIN", null));
-    await POST(fakeReq(formWith({ file: file() }), { "x-forwarded-for": "203.0.113.5, 10.0.0.1" }));
+    await POST(
+      fakeReq(formWith({ file: file() }), {
+        "x-forwarded-for": "198.51.100.9, 203.0.113.5",
+      }),
+    );
     expect(limiter.checkRateLimit).toHaveBeenCalledWith("upload:ip:203.0.113.5", expect.any(Object));
   });
 

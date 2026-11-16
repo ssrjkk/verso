@@ -145,8 +145,14 @@ describe("GET /api/v1/:collection", () => {
     expect(db.entry.findMany).not.toHaveBeenCalled();
   });
 
-  it("лимит считается по первому IP из x-forwarded-for", async () => {
-    await GET(getReq({ "x-forwarded-for": "203.0.113.7, 10.0.0.1", "x-api-key": RAW_KEY }), params());
+  it("лимит считается по IP, добавленному прокси, а не по поддельному префиксу", async () => {
+    await GET(
+      getReq({
+        "x-forwarded-for": "198.51.100.9, 203.0.113.7",
+        "x-api-key": RAW_KEY,
+      }),
+      params(),
+    );
     expect(limiter.checkRateLimit).toHaveBeenCalledWith("v1:203.0.113.7", expect.any(Object));
   });
 });
