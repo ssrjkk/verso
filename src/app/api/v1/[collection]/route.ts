@@ -6,6 +6,11 @@ import { slugify } from "@/lib/slug";
 import { buildEntrySnapshot } from "@/lib/entry-snapshot";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/client-ip";
+import {
+  formatFieldErrors,
+  parseCollectionSchema,
+  validateEntryFieldValues,
+} from "@/lib/collection-schema";
 
 const CreateBody = z.object({
   title: z.string().trim().min(1).max(300),
@@ -115,6 +120,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ col
   }
   const body = parsed.data;
 
+  // Схема коллекции проверяется на сервере: Headless-клиент не может
+  // записать значение в обход ограничений, заданных в CMS.
+  const schema = parseCollectionSchema(col.schemaJson);
+  let fieldsJson = body.fieldsJson;
+  if (fieldsJson !== undefined || schema.length > 0) {
+    const checked = validateEntryFieldValues(schema, fieldsJson ?? "{}");
+    if (!checked.ok) {
+      return NextResponse.json(
+        { error: "Invalid fields", message: formatFieldErrors(checked.errors), details: checked.errors },
+        { status: 400 },
+      );
+    }
+    fieldsJson = checked.json;
+  }
+
   // Минимальный автор: первый ADMIN, иначе любой пользователь
   const author = await prisma.user.findFirst({ where: { role: "ADMIN" } }) ?? await prisma.user.findFirst();
   if (!author) return NextResponse.json({ error: "No users in system" }, { status: 500 });
@@ -130,7 +150,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ col
           title: body.title,
           slug: finalSlug,
           excerpt: body.excerpt,
-          fieldsJson: body.fieldsJson,
+          fieldsJson,
           authorId: author.id,
         },
       });

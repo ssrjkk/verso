@@ -169,6 +169,38 @@ describe("entry.create", () => {
     });
   });
 
+  it("create: схема коллекции проверяет обязательные поля", async () => {
+    (db.collection.findUnique as MockFn).mockResolvedValue({
+      id: "c1",
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+      ]),
+    });
+
+    await expect(
+      caller("MANAGER", db).entry.create({ collectionId: "c1", title: "T", fieldsJson: "{}" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("Цена") });
+    expect(db.entry.create).not.toHaveBeenCalled();
+  });
+
+  it("create: поля нормализуются по схеме (число из строки)", async () => {
+    (db.collection.findUnique as MockFn).mockResolvedValue({
+      id: "c1",
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+      ]),
+    });
+
+    await caller("MANAGER", db).entry.create({
+      collectionId: "c1",
+      title: "T",
+      fieldsJson: '{"price":"1250.50"}',
+    });
+    expect(db.entry.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ fieldsJson: '{"price":1250.5}' }) }),
+    );
+  });
+
   it("занятый slug получает суффикс -2 в пределах коллекции", async () => {
     (db.entry.findUnique as MockFn)
       .mockResolvedValueOnce({ id: "existing" })
@@ -297,6 +329,27 @@ describe("entry.update", () => {
     expect(db.revision.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ version: 5, changeNote: "План" }),
     });
+  });
+
+  it("update: поля проверяются схемой коллекции и нормализуются", async () => {
+    (db.collection.findUnique as MockFn).mockResolvedValue({
+      id: "c1",
+      schemaJson: JSON.stringify([
+        { key: "seats", label: "Мест", type: "number", required: true },
+      ]),
+    });
+
+    await expect(
+      caller("MANAGER", db).entry.update({ id: "e1", fieldsJson: '{"seats":""}' }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("Мест") });
+    expect(db.entry.update).not.toHaveBeenCalled();
+
+    await caller("MANAGER", db).entry.update({ id: "e1", fieldsJson: '{"seats":"12"}' });
+    expect(db.entry.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { fieldsJson: '{"seats":12}' },
+      }),
+    );
   });
 
   it("DRAFT -> entry.updated после коммита", async () => {

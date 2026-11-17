@@ -6,6 +6,11 @@ import { slugify } from "@/lib/slug";
 import { enqueueWebhooks, kickWebhookDrain } from "@/lib/webhook-outbox";
 import { EntryStatus, isEntryStatus } from "@/lib/entry-status";
 import { buildEntrySnapshot, parseEntrySnapshot } from "@/lib/entry-snapshot";
+import {
+  formatFieldErrors,
+  parseCollectionSchema,
+  validateEntryFieldValues,
+} from "@/lib/collection-schema";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -91,8 +96,23 @@ export const entryRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const base = input.slug ? slugify(input.slug) : slugify(input.title);
-      const collection = await ctx.prisma.collection.findUnique({ where: { id: input.collectionId }, select: { id: true } });
+      const collection = await ctx.prisma.collection.findUnique({
+        where: { id: input.collectionId },
+        select: { id: true, schemaJson: true },
+      });
       if (!collection) throw new TRPCError({ code: "NOT_FOUND", message: "Коллекция не найдена" });
+      // Схема коллекции — источник правды и для UI, и для API-клиентов.
+      // Пустая схема = легаси-режим: сохраняем JSON-объект без проверки полей.
+      const fields = validateEntryFieldValues(
+        parseCollectionSchema(collection.schemaJson),
+        input.fieldsJson,
+      );
+      if (!fields.ok) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: formatFieldErrors(fields.errors),
+        });
+      }
       if (input.stageId) {
         const stage = await ctx.prisma.workflowStage.findUnique({ where: { id: input.stageId }, select: { id: true } });
         if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
@@ -110,7 +130,7 @@ export const entryRouter = createTRPCRouter({
             title: input.title,
             slug: finalSlug,
             excerpt: input.excerpt,
-            fieldsJson: input.fieldsJson,
+            fieldsJson: fields.json,
             stageId: input.stageId,
             authorId: ctx.user.id,
           },
@@ -186,9 +206,30 @@ export const entryRouter = createTRPCRouter({
             });
           }
         }
+        // Правка полей проверяется схемой владельца записи, а не схемой,
+        // присланной клиентом: иначе ограничения можно обойти запросом.
+        let normalizedFields: string | undefined;
+        if (rest.fieldsJson !== undefined) {
+          const owner = await tx.collection.findUnique({
+            where: { id: current.collectionId },
+            select: { schemaJson: true },
+          });
+          const checked = validateEntryFieldValues(
+            parseCollectionSchema(owner?.schemaJson),
+            rest.fieldsJson,
+          );
+          if (!checked.ok) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: formatFieldErrors(checked.errors),
+            });
+          }
+          normalizedFields = checked.json;
+        }
         // Поведение идентично прежнему `{ ...rest }`: копируем только поля ввода
         // (scheduledFor/expectedUpdatedAt вынесены), slug/ scheduledFor обрабатываются ниже.
         const data = { ...rest } as Prisma.EntryUpdateInput;
+        if (normalizedFields !== undefined) data.fieldsJson = normalizedFields;
         if (rest.slug) {
           // Свой slug не трогаем; чужой занятый получает суффикс -2, -3, ...
           data.slug = await uniqueEntrySlug(

@@ -74,7 +74,8 @@ export function ImportButton({
   const [state, setState] = useState<string | null>(null);
   const importCsv = trpc.collection.importCsv.useMutation({
     onSuccess: (res) => {
-      setState(`Импортировано: ${res.imported}, пропущено: ${res.skipped}`);
+      const invalid = "invalid" in res && res.invalid ? `, не прошло проверку полей: ${res.invalid}` : "";
+      setState(`Импортировано: ${res.imported}, пропущено: ${res.skipped}${invalid}`);
       utils.collection.list.invalidate();
       utils.collection.get.invalidate();
       utils.entry.list.invalidate();

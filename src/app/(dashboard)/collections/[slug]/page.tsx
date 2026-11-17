@@ -5,9 +5,27 @@ import Link from "next/link";
 import { trpc } from "@/trpc/client";
 import { EntryForm, type EntryFormInitial } from "@/components/entries/EntryForm";
 import { ExportButton } from "@/components/collections/CsvButtons";
+import {
+  parseCollectionSchema,
+  parseFieldValues,
+  type CollectionField,
+} from "@/lib/collection-schema";
 
 const STATUSES = ["ALL", "DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"] as const;
 type StatusFilter = (typeof STATUSES)[number];
+
+function formatFieldValue(field: CollectionField, value: unknown): string {
+  if (value === undefined || value === null || value === "") return "—";
+  if (field.type === "checkbox") return value === true ? "Да" : "Нет";
+  if (field.type === "date" && typeof value === "string") {
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isNaN(date.getTime())
+      ? value
+      : new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" }).format(date);
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
 
 export default function CollectionDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -45,6 +63,11 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
       e.tags.some((t) => t.tag.name.toLowerCase().includes(needle)),
     );
   }, [entries, tag]);
+
+  const schema = useMemo(
+    () => parseCollectionSchema(collection?.schemaJson),
+    [collection?.schemaJson],
+  );
 
   const handleDelete = (id: string, title: string) => {
     if (!window.confirm(`Удалить запись «${title}»?`)) return;
@@ -129,12 +152,19 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
               <th className="px-4 py-2">Title</th>
               <th className="px-4 py-2">Slug</th>
               <th className="px-4 py-2">Status</th>
+              {schema.map((field) => (
+                <th key={field.key} className="px-4 py-2">
+                  {field.label}
+                </th>
+              ))}
               <th className="px-4 py-2">Updated</th>
               <th className="px-4 py-2">Действия</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((e) => (
+            {filtered.map((e) => {
+              const entryValues = parseFieldValues(e.fieldsJson);
+              return (
               <tr key={e.id} className="border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5">
                 <td className="px-4 py-2 font-medium">
                   <Link href={`/entries/${e.id}`} className="hover:text-[#f97316] hover:underline">
@@ -145,6 +175,11 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                 <td className="px-4 py-2">
                   <span className="rounded bg-[#f97316]/15 px-2 py-0.5 text-xs">{e.status}</span>
                 </td>
+                {schema.map((field) => (
+                  <td key={field.key} className="px-4 py-2 text-xs">
+                    {formatFieldValue(field, entryValues[field.key])}
+                  </td>
+                ))}
                 <td className="px-4 py-2 text-xs opacity-70">
                   {new Date(e.updatedAt).toLocaleString("ru-RU")}
                 </td>
@@ -201,7 +236,8 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {!isLoading && !filtered.length && (
@@ -229,6 +265,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
             <h2 className="mb-3 text-lg font-bold">Новая запись</h2>
             <EntryForm
               collectionId={collection.id}
+              schema={schema}
               onSaved={() => {
                 setShowCreate(false);
                 refresh();
@@ -245,6 +282,7 @@ export default function CollectionDetail({ params }: { params: Promise<{ slug: s
             <h2 className="mb-3 text-lg font-bold">Редактировать запись</h2>
             <EntryForm
               initial={editing}
+              schema={schema}
               onSaved={() => {
                 setEditing(null);
                 refresh();

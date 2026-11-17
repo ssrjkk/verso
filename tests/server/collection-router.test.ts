@@ -112,6 +112,62 @@ describe("collection mutations", () => {
     });
   });
 
+  it("create: структурированные fields нормализуются в schemaJson", async () => {
+    const out = await caller("ADMIN", db).collection.create({
+      name: "Услуги",
+      fields: [{ key: "price", label: "Цена", type: "number", required: true }],
+    });
+    expect(out).toMatchObject({
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+      ]),
+    });
+  });
+
+  it("create/update: невалидный schemaJson -> BAD_REQUEST без записи", async () => {
+    await expect(
+      caller("ADMIN", db).collection.create({ name: "X", schemaJson: '[{"key":"Bad Key"}]' }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      caller("ADMIN", db).collection.update({ id: "c1", schemaJson: "not json" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.collection.create).not.toHaveBeenCalled();
+    expect(db.collection.update).not.toHaveBeenCalled();
+  });
+
+  it("create/update: fields и schemaJson одновременно -> BAD_REQUEST", async () => {
+    const input = {
+      key: "price",
+      label: "Цена",
+      type: "number" as const,
+      required: false,
+    };
+    await expect(
+      caller("ADMIN", db).collection.create({
+        name: "X",
+        fields: [input],
+        schemaJson: JSON.stringify([input]),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("update: fields сохраняются структурированно", async () => {
+    await caller("ADMIN", db).collection.update({
+      id: "c1",
+      fields: [{ key: "starts_at", label: "Старт", type: "date" }],
+    });
+    expect(db.collection.update).toHaveBeenCalledWith({
+      where: { id: "c1" },
+      data: {
+        name: undefined,
+        description: undefined,
+        schemaJson: JSON.stringify([
+          { key: "starts_at", label: "Старт", type: "date", required: false },
+        ]),
+      },
+    });
+  });
+
   it("remove: удаляет коллекцию", async () => {
     await caller("ADMIN", db).collection.remove({ id: "c1" });
     expect(db.collection.delete).toHaveBeenCalledWith({ where: { id: "c1" } });
@@ -163,6 +219,32 @@ describe("collection exportCsv", () => {
     await caller("VIEWER", db).collection.exportCsv({ collectionId: "c1" });
     expect(db.entry.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { collectionId: "c1", status: undefined } }),
+    );
+  });
+
+  it("добавляет колонки схемы и нейтрализует формулы", async () => {
+    (db.collection.findUnique as MockFn).mockResolvedValue({
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: false },
+        { key: "paid", label: "Оплачено", type: "checkbox", required: false },
+        { key: "note", label: "Заметка", type: "text", required: false },
+      ]),
+    });
+    (db.entry.findMany as MockFn).mockResolvedValue([
+      {
+        title: "Товар",
+        slug: "tovar",
+        status: "DRAFT",
+        updatedAt: new Date("2026-01-02T03:04:05.000Z"),
+        fieldsJson: '{"price":1200,"paid":true,"note":"=x"}',
+      },
+    ]);
+
+    const csv = await caller("VIEWER", db).collection.exportCsv({ collectionId: "c1" });
+
+    expect(csv).toBe(
+      "title,slug,status,updatedAt,price,paid,note\r\n" +
+        "Товар,tovar,DRAFT,2026-01-02T03:04:05.000Z,1200,true,'=x",
     );
   });
 });
@@ -239,6 +321,34 @@ describe("collection importCsv", () => {
       }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(db.entry.create).not.toHaveBeenCalled();
+  });
+
+  it("импорт проверяет поля схемы и пропускает невалидные строки", async () => {
+    (db.collection.findUnique as MockFn).mockResolvedValue({
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+        { key: "paid", label: "Оплачено", type: "checkbox", required: false },
+      ]),
+    });
+    const csv = [
+      "title,Цена,Оплачено",
+      "Товар,1200,да",
+      "Без цены,,true",
+      "Кривая,дорого,true",
+    ].join("\n");
+
+    const out = await caller("MANAGER", db).collection.importCsv({ collectionId: "c1", csv });
+
+    expect(out).toEqual({ imported: 1, skipped: 0, conflicts: 0, invalid: 2 });
+    expect(db.entry.create).toHaveBeenCalledWith({
+      data: {
+        collectionId: "c1",
+        title: "Товар",
+        slug: "tovar",
+        authorId: "u-MANAGER",
+        fieldsJson: '{"price":1200,"paid":true}',
+      },
+    });
   });
 
   it("P2002 в батче: построчный добор, прочие ошибки не глотаются", async () => {

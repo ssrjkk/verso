@@ -4,8 +4,39 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import BlockRender from "@/components/blocks/BlockRender";
+import {
+  parseCollectionSchema,
+  parseFieldValues,
+  type CollectionField,
+} from "@/lib/collection-schema";
 
 type Props = { params: Promise<{ collection: string; slug: string }> };
+
+function PublicFieldValue({ field, value }: { field: CollectionField; value: unknown }) {
+  if (value === undefined || value === null || value === "") return <>—</>;
+  if (field.type === "checkbox") return <>{value === true ? "Да" : "Нет"}</>;
+  if (field.type === "date" && typeof value === "string") {
+    const date = new Date(`${value}T00:00:00Z`);
+    if (!Number.isNaN(date.getTime())) {
+      return <>{new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)}</>;
+    }
+  }
+  if (field.type === "url" && typeof value === "string") {
+    return (
+      <a href={value} rel="noreferrer noopener" className="underline decoration-[#f97316]/40 underline-offset-2 hover:text-[#9a3412] dark:hover:text-[#fb923c]" target="_blank">
+        {value}
+      </a>
+    );
+  }
+  if (field.type === "email" && typeof value === "string") {
+    return (
+      <a href={`mailto:${value}`} className="underline decoration-[#f97316]/40 underline-offset-2 hover:text-[#9a3412] dark:hover:text-[#fb923c]">
+        {value}
+      </a>
+    );
+  }
+  return <span className="whitespace-pre-line">{typeof value === "object" ? JSON.stringify(value) : String(value)}</span>;
+}
 
 const getPublishedEntry = cache(async (collectionSlug: string, entrySlug: string) => {
   const collection = await prisma.collection.findUnique({
@@ -21,7 +52,7 @@ const getPublishedEntry = cache(async (collectionSlug: string, entrySlug: string
       status: "PUBLISHED",
     },
     include: {
-      collection: { select: { slug: true, name: true } },
+      collection: { select: { slug: true, name: true, schemaJson: true } },
       blocks: { where: { isVisible: true }, orderBy: { order: "asc" } },
       tags: { include: { tag: { select: { name: true, color: true } } } },
     },
@@ -62,6 +93,14 @@ export default async function PublicEntryPage({ params }: Props) {
   const publishedLabel = entry.publishedAt
     ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(entry.publishedAt)
     : null;
+
+  const schema = parseCollectionSchema(entry.collection.schemaJson);
+  const fieldValues = parseFieldValues(entry.fieldsJson);
+  const details = schema.flatMap((field) => {
+    const value = fieldValues[field.key];
+    if (value === undefined || value === null || value === "") return [];
+    return [{ field, value }];
+  });
 
   return (
     <div className="min-h-screen bg-[#f4f3fa] text-neutral-900 dark:bg-ink-950 dark:text-neutral-100">
@@ -108,6 +147,26 @@ export default async function PublicEntryPage({ params }: Props) {
               ) : null}
             </div>
           </header>
+
+          {details.length > 0 ? (
+            <section aria-labelledby="entry-details" className="flex flex-col gap-2">
+              <h2 id="entry-details" className="text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+                Детали
+              </h2>
+              <dl className="grid gap-px overflow-hidden rounded-2xl border border-black/10 bg-black/10 sm:grid-cols-2 dark:border-white/10 dark:bg-white/10">
+                {details.map(({ field, value }) => (
+                  <div key={field.key} className="bg-white p-4 dark:bg-ink-900">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                      {field.label}
+                    </dt>
+                    <dd className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                      <PublicFieldValue field={field} value={value} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
 
           {entry.blocks.length > 0 ? (
             <div className="flex flex-col gap-5">

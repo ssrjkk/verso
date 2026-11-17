@@ -235,6 +235,56 @@ describe("POST /api/v1/:collection", () => {
     });
   });
 
+  it("схема коллекции отклоняет невалидные поля до записи", async () => {
+    db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
+    db.collection.findUnique.mockResolvedValue({
+      id: "c1",
+      slug: "posts",
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+      ]),
+    });
+    const res = await POST(
+      postReq(JSON.stringify({ title: "T", fieldsJson: '{"price":"дорого"}' }), {
+        "x-api-key": RAW_KEY,
+      }),
+      params(),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid fields");
+    expect(body.details.price).toContain("число");
+    expect(db.entry.create).not.toHaveBeenCalled();
+  });
+
+  it("схема коллекции требует обязательные поля и умеет их нормализовать", async () => {
+    db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
+    db.collection.findUnique.mockResolvedValue({
+      id: "c1",
+      slug: "posts",
+      schemaJson: JSON.stringify([
+        { key: "price", label: "Цена", type: "number", required: true },
+      ]),
+    });
+
+    const missing = await POST(
+      postReq(JSON.stringify({ title: "T" }), { "x-api-key": RAW_KEY }),
+      params(),
+    );
+    expect(missing.status).toBe(400);
+
+    const ok = await POST(
+      postReq(JSON.stringify({ title: "T", fieldsJson: '{"price":"99"}' }), {
+        "x-api-key": RAW_KEY,
+      }),
+      params(),
+    );
+    expect(ok.status).toBe(201);
+    expect(db.entry.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ fieldsJson: '{"price":99}' }) }),
+    );
+  });
+
   it("без явного slug выводит его из title", async () => {
     db.apiKey.findUnique.mockResolvedValue(readKey({ scope: "READ_WRITE" }));
     await POST(postReq(JSON.stringify({ title: "Новая статья" }), { "x-api-key": RAW_KEY }), params());

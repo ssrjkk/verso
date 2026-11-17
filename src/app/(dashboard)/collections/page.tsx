@@ -6,6 +6,12 @@ import { trpc } from "@/trpc/client";
 import { useSession } from "@/lib/auth-client";
 import { slugify } from "@/lib/slug";
 import { ExportButton, ImportButton } from "@/components/collections/CsvButtons";
+import { SchemaEditor } from "@/components/collections/SchemaEditor";
+import {
+  checkCollectionSchema,
+  parseCollectionSchema,
+  type CollectionField,
+} from "@/lib/collection-schema";
 
 const ICONS = ["FileText", "Newspaper", "Folder", "LayoutGrid", "BookOpen", "ShoppingBag"];
 
@@ -20,6 +26,7 @@ export default function CollectionsPage() {
       setName("");
       setSlug("");
       setDesc("");
+      setCreateFields([]);
     },
   });
   const remove = trpc.collection.remove.useMutation({
@@ -36,6 +43,7 @@ export default function CollectionsPage() {
   const [slug, setSlug] = useState("");
   const [desc, setDesc] = useState("");
   const [icon, setIcon] = useState("FileText");
+  const [createFields, setCreateFields] = useState<CollectionField[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Inline-редактирование карточки: name + description. Slug — только текст:
@@ -43,6 +51,7 @@ export default function CollectionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editFields, setEditFields] = useState<CollectionField[]>([]);
   const [editError, setEditError] = useState<string | null>(null);
 
   const preview = useMemo(() => slugify(slug.trim() !== "" ? slug : name), [slug, name]);
@@ -53,12 +62,18 @@ export default function CollectionsPage() {
       setError("Название обязательно");
       return;
     }
+    const schemaCheck = checkCollectionSchema(JSON.stringify(createFields));
+    if (!schemaCheck.ok) {
+      setError(schemaCheck.message);
+      return;
+    }
     create.mutate(
       {
         name: name.trim(),
         ...(slug.trim() !== "" ? { slug: slugify(slug) } : {}),
         ...(desc.trim() !== "" ? { description: desc.trim() } : {}),
         icon,
+        fields: createFields,
       },
       { onError: (e) => setError(e.message) },
     );
@@ -69,10 +84,16 @@ export default function CollectionsPage() {
     remove.mutate({ id });
   };
 
-  const startEdit = (c: { id: string; name: string; description: string | null }) => {
+  const startEdit = (c: {
+    id: string;
+    name: string;
+    description: string | null;
+    schemaJson: string;
+  }) => {
     setEditingId(c.id);
     setEditName(c.name);
     setEditDesc(c.description ?? "");
+    setEditFields(parseCollectionSchema(c.schemaJson));
     setEditError(null);
   };
 
@@ -82,8 +103,13 @@ export default function CollectionsPage() {
       setEditError("Название обязательно");
       return;
     }
+    const schemaCheck = checkCollectionSchema(JSON.stringify(editFields));
+    if (!schemaCheck.ok) {
+      setEditError(schemaCheck.message);
+      return;
+    }
     update.mutate(
-      { id, name: editName.trim(), description: editDesc.trim() },
+      { id, name: editName.trim(), description: editDesc.trim(), fields: editFields },
       { onError: (e) => setEditError(e.message) },
     );
   };
@@ -129,6 +155,24 @@ export default function CollectionsPage() {
         <p className="text-xs opacity-60">
           slug: <span className="font-mono">/{preview || "—"}</span>
         </p>
+        <details className="rounded-xl border border-dashed p-3">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Поля коллекции{" "}
+            <span className="font-normal opacity-60">
+              {createFields.length > 0
+                ? `— ${createFields.length} шт.`
+                : "— необязательно, можно выбрать шаблон"}
+            </span>
+          </summary>
+          <div className="mt-3">
+            <SchemaEditor
+              value={createFields}
+              onChange={setCreateFields}
+              idPrefix="create-schema"
+              disabled={create.isPending}
+            />
+          </div>
+        </details>
         {error && <p className="text-sm text-red-600 dark:text-red-500">{error}</p>}
         <div>
           <button
@@ -159,7 +203,9 @@ export default function CollectionsPage() {
       )}
 
       <div className="grid sm:grid-cols-2 gap-3">
-        {(data ?? []).map((c) => (
+        {(data ?? []).map((c) => {
+          const fields = parseCollectionSchema(c.schemaJson);
+          return (
           <div key={c.id} className="rounded-2xl border p-4 flex flex-col gap-2">
             <Link href={`/collections/${c.slug}`} className="font-bold hover:text-[#f97316]">
               <span className="mr-2 inline-block rounded bg-[#f97316]/15 px-2 py-0.5 text-xs">{c.icon}</span>
@@ -175,6 +221,25 @@ export default function CollectionsPage() {
               </span>
             </div>
             {c.description && editingId !== c.id && <div className="text-sm opacity-80">{c.description}</div>}
+            {editingId !== c.id && (
+              <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                {fields.length > 0 ? (
+                  <>
+                    <span className="font-semibold opacity-60">Поля:</span>
+                    {fields.slice(0, 4).map((field) => (
+                      <span key={field.key} className="rounded-full border px-2 py-0.5 opacity-80">
+                        {field.label}
+                      </span>
+                    ))}
+                    {fields.length > 4 && (
+                      <span className="opacity-60">+{fields.length - 4}</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="opacity-50">Без настраиваемых полей</span>
+                )}
+              </div>
+            )}
             {isAdmin && editingId === c.id && (
               <div className="flex flex-col gap-2 rounded-xl border border-dashed p-2">
                 <input
@@ -192,6 +257,19 @@ export default function CollectionsPage() {
                   className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
                 />
                 <p className="font-mono text-xs opacity-60">slug: /{c.slug} (не изменяется)</p>
+                <details className="rounded-lg border border-dashed p-2">
+                  <summary className="cursor-pointer text-xs font-semibold">
+                    Поля коллекции ({editFields.length})
+                  </summary>
+                  <div className="mt-2">
+                    <SchemaEditor
+                      value={editFields}
+                      onChange={setEditFields}
+                      idPrefix={`edit-schema-${c.id}`}
+                      disabled={update.isPending}
+                    />
+                  </div>
+                </details>
                 {editError && <p className="text-xs text-red-600 dark:text-red-500">{editError}</p>}
                 <div className="flex gap-2">
                   <button
@@ -234,7 +312,8 @@ export default function CollectionsPage() {
             </div>
             <ImportButton collectionId={c.id} onDone={() => utils.collection.list.invalidate()} />
           </div>
-        ))}
+          );
+        })}
         {!isLoading && !data?.length && (
           <div className="rounded-2xl border border-dashed p-8 text-center">
             <p className="font-bold">Создайте первую коллекцию</p>
