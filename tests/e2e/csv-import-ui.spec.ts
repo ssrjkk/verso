@@ -23,7 +23,10 @@ test("csv import via UI button", async ({ page }) => {
   const ts = Date.now();
   const csv = `title,slug\nE2E csvui A ${ts},e2e-csvui-a-${ts}\nE2E csvui B ${ts},e2e-csvui-b-${ts}\n`;
   await page.goto("/collections");
-  const card = page.locator("div.rounded-2xl.border", { has: page.locator('a[href="/collections/posts"]') }).first();
+  const card = page
+    .getByTestId("collection-card")
+    .filter({ has: page.locator('a[href="/collections/posts"]') })
+    .first();
   await expect(card).toBeVisible({ timeout: 15000 });
   await card.locator('input[type="file"]').setInputFiles({
     name: `import-${ts}.csv`,

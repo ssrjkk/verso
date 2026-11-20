@@ -54,6 +54,44 @@ function safeObject(propsJson: string, type: BlockType): Record<string, unknown>
   return parseProps<Record<string, unknown>>(propsJson, { ...(DEFAULT_BLOCKS[type] as object) } as Record<string, unknown>);
 }
 
+function EyeIcon({ off = false }: { off?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="size-3.5"
+    >
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+      {off ? <path d="m4 4 16 16" /> : null}
+    </svg>
+  );
+}
+
+function PrinterIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="size-4"
+    >
+      <path d="M7 8V4h10v4" />
+      <path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+      <rect x="7" y="14" width="10" height="6" rx="1" />
+    </svg>
+  );
+}
+
 // Стабильный внешний источник времени. `getSnapshot` обязан возвращать одно
 // и то же значение между уведомлениями: `Date.now()` на каждый вызов даёт
 // бесконечный цикл рендеров (React error #185), особенно после раскрытия
@@ -117,7 +155,7 @@ function SortableBlockRow({
   );
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-2xl border bg-white/60 dark:bg-white/5">
+    <div ref={setNodeRef} style={style} className="rounded-sm border bg-white/60 dark:bg-white/5">
       <div className="flex items-center gap-2 p-3">
         <button
           type="button"
@@ -125,11 +163,11 @@ function SortableBlockRow({
           {...listeners}
           title="Перетащить"
           aria-label="Перетащить блок"
-          className="cursor-grab rounded-lg border px-2 py-1 text-xs opacity-70 hover:opacity-100 active:cursor-grabbing"
+          className="cursor-grab rounded-sm border px-2 py-1 text-xs opacity-70 hover:opacity-100 active:cursor-grabbing"
         >
           ⋮⋮
         </button>
-        <span className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">
+        <span className="rounded-full bg-accent/12 px-2.5 py-0.5 text-xs font-bold text-accent-ink dark:text-accent-soft">
           {BLOCK_TYPE_LABELS[block.type]} · #{index + 1}
         </span>
         {!block.isVisible ? (
@@ -139,15 +177,16 @@ function SortableBlockRow({
           <button
             type="button"
             onClick={onToggleVisible}
-            title={block.isVisible ? "Скрыть" : "Показать"}
-            className="rounded-lg border px-2 py-1 text-xs hover:border-[#f97316]"
+            title={block.isVisible ? "Скрыть блок" : "Показать блок"}
+            aria-label={block.isVisible ? "Скрыть блок" : "Показать блок"}
+            className="rounded-sm border px-2 py-1 text-xs hover:border-accent"
           >
-            {block.isVisible ? "👁" : "🚫"}
+            <EyeIcon off={!block.isVisible} />
           </button>
           <button
             type="button"
             onClick={onToggleExpand}
-            className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-[#f97316]"
+            className="rounded-sm border px-2.5 py-1 text-xs font-semibold hover:border-accent"
           >
             {expanded ? "Свернуть" : "Редактировать"}
           </button>
@@ -155,9 +194,10 @@ function SortableBlockRow({
             type="button"
             onClick={onRemove}
             title="Удалить блок"
-            className="rounded-lg border px-2 py-1 text-xs text-red-600 dark:text-red-500 hover:border-red-500"
+            aria-label="Удалить блок"
+            className="rounded-sm border px-2 py-1 text-xs text-red-700 dark:text-red-400 hover:border-red-500"
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         </div>
       </div>
@@ -198,6 +238,8 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [ogImage, setOgImage] = useState("");
+  const [canonicalUrl, setCanonicalUrl] = useState("");
+  const [noIndex, setNoIndex] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
   const [status, setStatus] = useState("DRAFT");
   const [seoHydrated, setSeoHydrated] = useState(false);
@@ -255,7 +297,9 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     setExcerpt(e.excerpt ?? "");
     setSeoTitle(e.seoTitle ?? "");
     setSeoDescription(e.seoDescription ?? "");
-    setOgImage((e as { ogImageUrl?: string | null }).ogImageUrl ?? "");
+    setOgImage(e.ogImageUrl ?? "");
+    setCanonicalUrl(e.canonicalUrl ?? "");
+    setNoIndex(Boolean(e.noIndex));
     // Храним локальное значение: datetime-local должен показывать время
     // пользователя, а не UTC-срез (иначе расписание «уезжает» на offset).
     setScheduledFor(toDateTimeLocalValue(e.scheduledFor));
@@ -339,17 +383,20 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       excerpt: excerpt || undefined,
       seoTitle: seoTitle || undefined,
       seoDescription: seoDescription || undefined,
+      // Пустая строка → null: поле можно снять, а не только заменить.
+      ogImageUrl: ogImage.trim() || null,
+      canonicalUrl: canonicalUrl.trim() || null,
+      noIndex,
       // Пустая строка → null: расписание можно снять, а не только заменить.
       scheduledFor: dateTimeLocalToIso(scheduledFor),
       status: status as "DRAFT" | "IN_REVIEW" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED",
       changeNote: saveNote || "Обновление SEO и метаданных",
       // Оптимистичная блокировка: сервер отклонит сохранение чужой версии кодом CONFLICT.
-        // Оптимистичная блокировка: сервер отклонит сохранение чужой версии кодом CONFLICT.
-        expectedUpdatedAt: entry?.updatedAt
-          ? entry.updatedAt instanceof Date
-            ? entry.updatedAt.toISOString()
-            : String(entry.updatedAt)
-          : undefined,
+      expectedUpdatedAt: entry?.updatedAt
+        ? entry.updatedAt instanceof Date
+          ? entry.updatedAt.toISOString()
+          : String(entry.updatedAt)
+        : undefined,
     });
   }
 
@@ -357,10 +404,10 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     return <div className="p-6 text-sm opacity-70">Загрузка конструктора…</div>;
   }
   if (entryQuery.isError) {
-    return <div className="p-6 text-sm text-red-600 dark:text-red-500">Не удалось загрузить запись: {entryQuery.error.message}</div>;
+    return <div className="p-6 text-sm text-red-700 dark:text-red-400">Не удалось загрузить запись: {entryQuery.error.message}</div>;
   }
   if (blocksQuery.isError) {
-    return <div className="p-6 text-sm text-red-600 dark:text-red-500">Не удалось загрузить блоки: {blocksQuery.error.message}</div>;
+    return <div className="p-6 text-sm text-red-700 dark:text-red-400">Не удалось загрузить блоки: {blocksQuery.error.message}</div>;
   }
   const entry = entryQuery.data;
   if (!entry) return <div className="p-6 text-sm opacity-70">Запись не найдена</div>;
@@ -371,22 +418,23 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-5">
       <div className="no-print flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Конструктор: {entry.title}</h1>
-        <span className="rounded-full bg-[#f97316]/12 px-3 py-1 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">
+        <span className="rounded-full bg-accent/12 px-3 py-1 text-xs font-bold text-accent-ink dark:text-accent-soft">
           {STATUS_LABELS[entry.status] ?? entry.status}
         </span>
         <div className="ml-auto flex gap-2">
           <button
             type="button"
             onClick={() => window.print()}
-            className="rounded-xl border px-4 py-2 text-sm font-semibold hover:border-[#f97316]"
+            className="inline-flex items-center gap-2 rounded-sm border px-4 py-2 text-sm font-semibold hover:border-accent"
           >
-            🖨 Печать
+            <PrinterIcon />
+            Печать
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={saveBlocks.isPending}
-            className="rounded-xl bg-[#c2410c] px-5 py-2 text-sm font-bold text-white hover:bg-[#9a3412] disabled:opacity-50"
+            className="rounded-sm bg-accent-strong px-5 py-2 text-sm font-bold text-white hover:bg-accent-deep disabled:opacity-50"
           >
             {saveBlocks.isPending ? "Сохранение…" : "Сохранить блоки"}
           </button>
@@ -394,11 +442,11 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       </div>
 
       {feedback ? (
-        <div className="no-print rounded-xl border border-[#f97316]/40 bg-[#f97316]/8 px-4 py-2 text-sm">{feedback}</div>
+        <div className="no-print rounded-sm border border-accent/40 bg-accent/8 px-4 py-2 text-sm">{feedback}</div>
       ) : null}
 
       {/* Добавить блоки */}
-      <section className="no-print rounded-2xl border p-4">
+      <section className="no-print rounded-sm border p-4">
         <div className="mb-2 text-sm font-bold">Добавить блок</div>
         <div className="flex flex-wrap gap-2">
           {BLOCK_TYPES.map((t) => (
@@ -406,7 +454,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               key={t}
               type="button"
               onClick={() => addBlock(t)}
-              className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:border-[#f97316] hover:text-[#f97316]"
+              className="rounded-sm border px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent"
             >
               + {BLOCK_TYPE_LABELS[t]}
             </button>
@@ -419,7 +467,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="no-print flex flex-col gap-2">
             {blocks.length === 0 ? (
-              <div className="rounded-2xl border border-dashed p-6 text-center text-sm opacity-60">
+              <div className="rounded-sm border border-dashed p-6 text-center text-sm opacity-60">
                 Блоков пока нет — добавьте первый блок выше
               </div>
             ) : null}
@@ -446,7 +494,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       </DndContext>
 
       {/* Превью */}
-      <section className="print-clean rounded-2xl border p-5">
+      <section className="print-clean rounded-sm border p-5">
         <h2 className="font-display mb-3 text-xl font-bold">Превью</h2>
         <div className="flex flex-col gap-4">
           {blocks.filter((b) => b.isVisible).length === 0 ? (
@@ -461,12 +509,12 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       </section>
 
       {/* SEO-панель */}
-      <section className="no-print rounded-2xl border p-4">
+      <section className="no-print rounded-sm border p-4">
         <h2 className="font-display mb-3 text-lg font-bold">SEO и публикация</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block" htmlFor="seo-title">
             <span className="mb-1 block text-xs font-semibold opacity-70">Заголовок</span>
-            <input id="seo-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <input id="seo-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
           </label>
           <div className="block">
             <label htmlFor="seo-slug" className="mb-1 block text-xs font-semibold opacity-70">Slug</label>
@@ -476,25 +524,25 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               onChange={(e) => setSlug(e.target.value)}
               aria-invalid={!slugValid}
               aria-describedby="seo-slug-hint"
-              className={`w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#f97316] ${!slugValid ? "border-red-500" : ""}`}
+              className={`w-full rounded-sm border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-accent ${!slugValid ? "border-red-500" : ""}`}
             />
             <p id="seo-slug-hint" className="mt-1 text-xs opacity-60">
               Только латиница, цифры и дефисы (a-z, 0-9, -).
-              {!slugValid && <span role="alert" className="font-semibold text-red-600 dark:text-red-500"> Некорректный slug.</span>}
+              {!slugValid && <span role="alert" className="font-semibold text-red-700 dark:text-red-400"> Некорректный slug.</span>}
             </p>
           </div>
           <label className="block sm:col-span-2" htmlFor="seo-excerpt">
             <span className="mb-1 block text-xs font-semibold opacity-70">Анонс (excerpt)</span>
-            <textarea id="seo-excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={2} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <textarea id="seo-excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={2} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
           </label>
           <div className="block">
             <label htmlFor="seo-meta-title" className="mb-1 block text-xs font-semibold opacity-70">SEO-заголовок</label>
-            <input id="seo-meta-title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={120} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <input id="seo-meta-title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} maxLength={120} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
             <p className="mt-1 text-xs opacity-60" aria-live="polite">{seoTitle.length}/60 — оптимально до 60 символов</p>
           </div>
           <div className="block">
             <label htmlFor="seo-meta-desc" className="mb-1 block text-xs font-semibold opacity-70">SEO-описание</label>
-            <input id="seo-meta-desc" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={320} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <input id="seo-meta-desc" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} maxLength={320} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
             <p className="mt-1 text-xs opacity-60" aria-live="polite">{seoDescription.length}/160 — оптимально до 160 символов</p>
           </div>
           <div className="block sm:col-span-2">
@@ -504,17 +552,36 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
               value={ogImage}
               onChange={(e) => setOgImage(e.target.value)}
               placeholder="https://…/og.png"
-              className="w-full rounded-lg border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-[#f97316]"
+              className="w-full rounded-sm border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-accent"
             />
-            <p className="mt-1 text-xs opacity-60">Используется только для предпросмотра ниже.</p>
+            <p className="mt-1 text-xs opacity-60">Абсолютный http(s)-URL. Сохраняется в og:image и показан в превью ниже.</p>
           </div>
+          <div className="block sm:col-span-2">
+            <label htmlFor="seo-canonical" className="mb-1 block text-xs font-semibold opacity-70">Канонический URL</label>
+            <input
+              id="seo-canonical"
+              value={canonicalUrl}
+              onChange={(e) => setCanonicalUrl(e.target.value)}
+              placeholder="https://site.ru/article или /article"
+              className="w-full rounded-sm border bg-transparent px-3 py-1.5 font-mono text-sm outline-none focus:border-accent"
+            />
+            <p className="mt-1 text-xs opacity-60">Абсолютный адрес или путь от корня. Попадает в link rel=&quot;canonical&quot;.</p>
+          </div>
+          <label className="flex items-center gap-2 self-end pb-1.5 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={noIndex}
+              onChange={(e) => setNoIndex(e.target.checked)}
+            />
+            Закрыть от индексации (noindex)
+          </label>
           <label className="block" htmlFor="seo-scheduled">
             <span className="mb-1 block text-xs font-semibold opacity-70">Запланировать на</span>
-            <input id="seo-scheduled" type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <input id="seo-scheduled" type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
           </label>
           <label className="block" htmlFor="seo-status">
             <span className="mb-1 block text-xs font-semibold opacity-70">Статус</span>
-            <select id="seo-status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]">
+            <select id="seo-status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent">
               {Object.entries(STATUS_LABELS).map(([v, label]) => (
                 <option key={v} value={v}>{label}</option>
               ))}
@@ -522,7 +589,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
           </label>
           <label className="block sm:col-span-2" htmlFor="seo-note">
             <span className="mb-1 block text-xs font-semibold opacity-70">Комментарий к изменению</span>
-            <input id="seo-note" value={saveNote} onChange={(e) => setSaveNote(e.target.value)} placeholder="Например: обновил hero и тарифы" className="w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]" />
+            <input id="seo-note" value={saveNote} onChange={(e) => setSaveNote(e.target.value)} placeholder="Например: обновил hero и тарифы" className="w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent" />
           </label>
         </div>
         <div className="mt-4">
@@ -531,7 +598,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             title={seoTitle || title}
             description={seoDescription || excerpt}
             image={ogImage || undefined}
-            url={`/${entry.collection?.slug ?? "entry"}/${slug || entry.slug}`}
+            url={`/p/${entry.collection?.slug ?? "entry"}/${slug || entry.slug}`}
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -540,7 +607,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={handleSeoSave}
             disabled={updateEntry.isPending || !slugValid}
             aria-busy={updateEntry.isPending}
-            className="rounded-xl border border-[#f97316] px-5 py-2 text-sm font-bold text-[#9a3412] hover:bg-[#f97316]/10 disabled:opacity-50 dark:text-[#f97316]"
+            className="rounded-sm border border-accent px-5 py-2 text-sm font-bold text-accent-ink hover:bg-accent/10 disabled:opacity-50 dark:text-accent-soft"
           >
             {updateEntry.isPending ? "Сохранение…" : "Сохранить SEO"}
           </button>
@@ -549,7 +616,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
             onClick={() => publishEntry.mutate({ id })}
             disabled={publishEntry.isPending}
             aria-busy={publishEntry.isPending}
-            className="rounded-xl bg-[#c2410c] px-5 py-2 text-sm font-bold text-white hover:bg-[#9a3412] disabled:opacity-50"
+            className="rounded-sm bg-accent-strong px-5 py-2 text-sm font-bold text-white hover:bg-accent-deep disabled:opacity-50"
           >
             {publishEntry.isPending ? "Публикация…" : "Опубликовать"}
           </button>
@@ -557,17 +624,17 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
       </section>
 
       {/* Ревизии */}
-      <section className="no-print rounded-2xl border p-4">
+      <section className="no-print rounded-sm border p-4">
         <h2 className="font-display mb-3 text-lg font-bold">История ревизий ({revisions.length})</h2>
         {revisions.length === 0 ? (
           <div className="text-sm opacity-60">Ревизий пока нет</div>
         ) : (
           <div className="flex flex-col gap-2">
             {revisions.map((r, idx) => (
-              <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm">
-                <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-xs font-bold text-[#9a3412] dark:text-[#f97316]">v{r.version}</span>
+              <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-sm border px-3 py-2 text-sm">
+                <span className="rounded-full bg-accent/12 px-2 py-0.5 text-xs font-bold text-accent-ink dark:text-accent-soft">v{r.version}</span>
                 <span className="opacity-80">{r.changeNote ?? "Без комментария"}</span>
-                <span className="text-xs opacity-50" title={new Date(r.createdAt).toLocaleString("ru-RU")}>
+                <span className="text-xs opacity-60" title={new Date(r.createdAt).toLocaleString("ru-RU")}>
                   {new Date(r.createdAt).toLocaleString("ru-RU")} · {relativeTime(r.createdAt)}
                 </span>
                 <button
@@ -576,7 +643,7 @@ export default function EntryBuilderPage({ params }: { params: Promise<{ id: str
                   disabled={restoreRevision.isPending || idx === 0}
                   title={idx === 0 ? "Текущая версия" : `Откатить к v${r.version}`}
                   aria-label={idx === 0 ? `Текущая версия v${r.version}` : `Откатить к версии ${r.version}`}
-                  className="ml-auto rounded-lg border px-3 py-1 text-xs font-semibold hover:border-[#f97316] disabled:opacity-50"
+                  className="ml-auto rounded-sm border px-3 py-1 text-xs font-semibold hover:border-accent disabled:opacity-50"
                 >
                   {idx === 0 ? "Текущая" : "Откатить"}
                 </button>

@@ -58,15 +58,15 @@ function KanbanCard({ card, stageId }: { card: Card; stageId: string }) {
         if (e.key === "Enter") router.push(`/entries/${card.id}`);
       }}
       onDoubleClick={() => router.push(`/entries/${card.id}`)}
-      className="cursor-grab rounded-xl border bg-white p-2.5 text-sm outline-none active:cursor-grabbing focus-visible:border-[#f97316] focus-visible:ring-2 focus-visible:ring-[#f97316] dark:bg-black/30"
+      className="cursor-grab rounded-sm border border-ink-950/10 bg-paper-raised p-2.5 text-sm outline-none active:cursor-grabbing focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent dark:border-white/10 dark:bg-ink-900/60"
     >
       <div className="font-semibold leading-snug">{card.title}</div>
       <div className="mt-1 text-xs opacity-60">{card.collection.name}</div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#9a3412] dark:text-[#f97316]">
+        <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[11px] font-bold text-accent-ink dark:text-accent-soft">
           {STATUS_LABELS[card.status] ?? card.status}
         </span>
-        <span className="text-[11px] opacity-50">
+        <span className="text-[11px] opacity-60">
           {new Date(card.updatedAt).toLocaleDateString("ru-RU")}
         </span>
       </div>
@@ -85,8 +85,8 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[220px] flex-col rounded-2xl border p-3 transition-colors ${
-        isOver ? "border-2 border-[#f97316] bg-[#f97316]/8" : "bg-white/50 dark:bg-white/5"
+      className={`flex min-h-[220px] flex-col rounded-sm border p-3 transition-colors ${
+        isOver ? "border-2 border-accent bg-accent/8" : "bg-white/50 dark:bg-white/5"
       }`}
     >
       <div className="mb-2 flex items-center gap-2 text-sm font-bold">
@@ -97,7 +97,11 @@ function KanbanColumn({
       <div className="flex flex-col gap-2">
         {stage.entries.map((e) =>
           e.id === activeId ? (
-            <div key={e.id} className="rounded-xl border border-dashed border-[#f97316] p-2.5 text-xs text-neutral-500 dark:text-neutral-400">
+            <div
+              key={e.id}
+              data-testid="kanban-drag-placeholder"
+              className="rounded-sm border border-dashed border-accent p-2.5 text-xs text-stone-600 dark:text-stone-400"
+            >
               {e.title}
             </div>
           ) : (
@@ -105,7 +109,7 @@ function KanbanColumn({
           ),
         )}
         {stage.entries.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-3 text-center text-xs text-neutral-500 dark:text-neutral-400">
+          <div className="rounded-sm border border-dashed p-3 text-center text-xs text-stone-600 dark:text-stone-400">
             Перетащите карточку сюда
           </div>
         ) : null}
@@ -180,12 +184,12 @@ export default function BoardPage() {
     return (
       <div className="flex flex-col gap-3">
         <h1 className="font-display text-2xl font-extrabold">Редполитика (Kanban)</h1>
-        <div className="rounded-xl border border-red-300 p-4 text-sm text-red-600 dark:text-red-500">
+        <div className="rounded-sm border border-red-300 p-4 text-sm text-red-700 dark:text-red-400">
           Не удалось загрузить этапы: {stagesQuery.error.message}
           <button
             type="button"
             onClick={() => stagesQuery.refetch()}
-            className="ml-3 rounded-lg border px-3 py-1 text-xs font-semibold text-current"
+            className="ml-3 rounded-sm border px-3 py-1 text-xs font-semibold text-current"
           >
             Повторить
           </button>
@@ -201,15 +205,15 @@ export default function BoardPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold">Редполитика (Kanban)</h1>
         <span className="text-xs opacity-60">Перетаскивайте карточки между колонками</span>
-        {move.isPending ? <span className="text-xs font-semibold text-[#9a3412] dark:text-[#f97316]">Перемещение…</span> : null}
+        {move.isPending ? <span className="text-xs font-semibold text-accent-ink dark:text-accent-soft">Перемещение…</span> : null}
       </div>
       {move.isError ? (
-        <div className="rounded-xl border border-red-300 p-3 text-sm text-red-600 dark:text-red-500">
+        <div className="rounded-sm border border-red-300 p-3 text-sm text-red-700 dark:text-red-400">
           Не удалось переместить: {move.error.message}
         </div>
       ) : null}
       {stages.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-6 text-center text-sm opacity-60">
+        <div className="rounded-sm border border-dashed p-6 text-center text-sm opacity-60">
           Этапы workflow пока не созданы
         </div>
       ) : (

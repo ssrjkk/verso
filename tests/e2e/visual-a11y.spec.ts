@@ -99,7 +99,7 @@ test.describe.serial("visual: страницы × вьюпорты × темы",
     for (const vp of VIEWPORTS) {
       test(`${theme} ${vp.label}: скриншоты без горизонтального переполнения`, async ({ browser }) => {
         // 12 страниц × полный скриншот: на медленном CI 30 с мало.
-        test.setTimeout(90_000);
+        test.setTimeout(180_000);
         for (const p of pages()) {
           const { ctx, page } = await themedPage(
             browser,
@@ -127,7 +127,9 @@ test.describe.serial("visual: страницы × вьюпорты × темы",
 
   for (const theme of THEMES) {
     test(`axe ${theme}: 0 serious/critical на всех страницах`, async ({ browser }) => {
-      test.setTimeout(90_000);
+      // 12 страниц × (рендер + axe) на загруженном CI. 90 с один раз не хватило
+      // в полном прогоне; 180 с — запас без ослабления проверок.
+      test.setTimeout(180_000);
       const { ctx, page } = await themedPage(browser, theme, { w: 1440, h: 900 }, ADMIN);
       try {
         for (const p of pages()) {
@@ -181,7 +183,7 @@ test.describe.serial("visual: состояния, клавиатура, диал
     }
   });
 
-  test("клавиатура: Tab-порядок, фокус-кольцо #f97316", async ({ browser }) => {
+  test("клавиатура: Tab-порядок, фокус-кольцо киновари", async ({ browser }) => {
     const { ctx, page } = await themedPage(browser, "light", { w: 1440, h: 900 }, ADMIN);
     try {
       await page.goto("/board", { waitUntil: "domcontentloaded" });
@@ -209,14 +211,14 @@ test.describe.serial("visual: состояния, клавиатура, диал
         if (!info) break;
         focused.push(`${info.tag}:${info.label}`);
         expect(info.visible, `таб ${i}: сфокусированное видимо`).toBe(true);
-        if (info.outline === "rgb(249, 115, 22)" || info.ring.includes("249, 115, 22")) {
+        if (info.outline === "rgb(178, 58, 43)" || info.ring.includes("178, 58, 43")) {
           ringOk = true;
         }
       }
       expect(focused.length, "порядок содержит контролы").toBeGreaterThanOrEqual(8);
       // Порядок начинается с навигации/управления, карточки досок достижимы.
       expect(focused.some((f) => f.startsWith("A:") || f.startsWith("BUTTON:")), "ссылки/кнопки в порядке").toBe(true);
-      expect(ringOk, "фокус-кольцо #f97316 встречается").toBe(true);
+      expect(ringOk, "фокус-кольцо киновари встречается").toBe(true);
     } finally {
       await ctx.close();
     }
@@ -248,7 +250,7 @@ test.describe.serial("visual: состояния, клавиатура, диал
       await expect(card).toBeFocused();
       // Space поднимает карточку: вместо неё — dashed-плейсхолдер.
       await page.keyboard.press("Space");
-      const placeholder = page.locator("div.rounded-xl.border-dashed", { hasText: "E2E visual entry" });
+      const placeholder = page.getByTestId("kanban-drag-placeholder").filter({ hasText: "E2E visual entry" });
       await expect(placeholder, "drag started via keyboard").toBeVisible({ timeout: 10000 });
       // Esc отменяет перетаскивание: карточка возвращается.
       await page.keyboard.press("Escape");

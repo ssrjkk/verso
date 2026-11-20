@@ -37,7 +37,7 @@ test("webhook e2e delivery with HMAC", async ({ page }) => {
     await page.getByPlaceholder("https://…").fill(`http://127.0.0.1:${port}/hook`);
     await page.getByPlaceholder("secret").fill(`s3cr3t-${ts}`);
     await page.getByRole("button", { name: "Добавить" }).click();
-    const row = page.locator("div.rounded-xl", { hasText: name });
+    const row = page.getByTestId("webhook-row").filter({ hasText: name });
     await expect(row).toBeVisible({ timeout: 15000 });
 
     await row.getByRole("button", { name: "Выкл" }).click();

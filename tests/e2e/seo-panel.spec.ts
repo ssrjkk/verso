@@ -30,9 +30,14 @@ test("seo panel persists", async ({ page }) => {
 
   const seoTitle = `E2E SEO title ${ts}`;
   const seoDesc = `E2E SEO desc ${ts}`;
+  const ogImage = `https://verso.test/og-${ts}.png`;
+  const canonical = `https://verso.test/a/${ts}`;
   await page.goto(`/entries/${entry.id}`);
   await page.getByLabel("SEO-заголовок").fill(seoTitle);
   await page.getByLabel("SEO-описание").fill(seoDesc);
+  await page.getByLabel("OG-изображение (URL)").fill(ogImage);
+  await page.getByLabel("Канонический URL").fill(canonical);
+  await page.getByLabel(/Закрыть от индексации/).check();
   const saveP = page.waitForResponse(/entry\.update/, { timeout: 15000 });
   await page.getByRole("button", { name: "Сохранить SEO" }).click();
   await saveP;
@@ -40,7 +45,16 @@ test("seo panel persists", async ({ page }) => {
   await page.reload();
   await expect(page.getByLabel("SEO-заголовок")).toHaveValue(seoTitle, { timeout: 15000 });
   await expect(page.getByLabel("SEO-описание")).toHaveValue(seoDesc);
+  await expect(page.getByLabel("OG-изображение (URL)")).toHaveValue(ogImage);
+  await expect(page.getByLabel("Канонический URL")).toHaveValue(canonical);
+  await expect(page.getByLabel(/Закрыть от индексации/)).toBeChecked();
 
   const got = await trpc(page, "entry.get", { id: entry.id }, true);
-  expect(got.op.result?.data.json).toMatchObject({ seoTitle, seoDescription: seoDesc });
+  expect(got.op.result?.data.json).toMatchObject({
+    seoTitle,
+    seoDescription: seoDesc,
+    ogImageUrl: ogImage,
+    canonicalUrl: canonical,
+    noIndex: true,
+  });
 });

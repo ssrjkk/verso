@@ -49,7 +49,7 @@ test("custom fields: template, dynamic form, edit and public page", async ({ pag
     await expect(page.locator("#create-schema-field-1-label")).toHaveValue("Окончание");
 
     await page.getByRole("button", { name: "Создать", exact: true }).click();
-    const card = page.locator("div.rounded-2xl.border", { hasText: collectionName }).first();
+    const card = page.getByTestId("collection-card").filter({ hasText: collectionName }).first();
     await expect(card).toBeVisible({ timeout: 15000 });
     await expect(card).toContainText("Поля:");
     await card.getByRole("link", { name: "Открыть", exact: true }).click();

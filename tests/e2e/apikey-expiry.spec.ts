@@ -27,7 +27,7 @@ test("apikey expiry via UI prompt", async ({ page }) => {
   await page.getByRole("button", { name: "Выпустить" }).click();
   await expect(page.getByText(name).first()).toBeVisible({ timeout: 15000 });
 
-  const row = page.locator("div.rounded-xl", { hasText: name }).first();
+  const row = page.getByTestId("api-key-row").filter({ hasText: name }).first();
   page.once("dialog", (d) => void d.accept("2027-05-01"));
   await row.getByRole("button", { name: "Expiry" }).click();
   await expect(row.getByText(/2027/)).toBeVisible({ timeout: 10000 });

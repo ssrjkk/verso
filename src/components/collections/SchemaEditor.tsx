@@ -12,7 +12,7 @@ import { COLLECTION_TEMPLATES } from "@/lib/collection-templates";
 import { slugify } from "@/lib/slug";
 
 const inputCls =
-  "w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]";
+  "w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent";
 const labelCls = "text-xs font-semibold uppercase tracking-wide opacity-60";
 
 function deriveKey(label: string): string {
@@ -120,7 +120,7 @@ export function SchemaEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-sm border border-dashed p-3">
         <div className="flex min-w-52 flex-1 flex-col gap-1">
           <label htmlFor={`${idPrefix}-template`} className={labelCls}>
             Отраслевой шаблон
@@ -144,7 +144,7 @@ export function SchemaEditor({
           type="button"
           onClick={applyTemplate}
           disabled={disabled || templateId === ""}
-          className="rounded-lg border px-3 py-1.5 text-sm font-semibold hover:border-[#f97316] disabled:opacity-40"
+          className="rounded-sm border px-3 py-1.5 text-sm font-semibold hover:border-accent disabled:opacity-40"
         >
           Применить
         </button>
@@ -154,7 +154,7 @@ export function SchemaEditor({
       </div>
 
       {value.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-4 text-sm">
+        <div className="rounded-sm border border-dashed p-4 text-sm">
           <p className="font-semibold">Полей пока нет — это нормально</p>
           <p className="mt-1 opacity-60">
             Без полей запись хранит произвольный JSON (легаси-режим). Добавьте поля,
@@ -166,9 +166,9 @@ export function SchemaEditor({
           {value.map((field, index) => {
             const base = `${idPrefix}-field-${index}`;
             return (
-              <li key={index} className="rounded-xl border p-3">
+              <li key={index} className="rounded-sm border p-3">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-[#f97316]/15 px-2 py-0.5 text-xs font-semibold text-[#9a3412] dark:text-[#f97316]">
+                  <span className="rounded bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-ink dark:text-accent-soft">
                     Поле {index + 1}
                   </span>
                   <span className="text-xs opacity-60">{FIELD_TYPE_LABELS[field.type]}</span>
@@ -335,7 +335,7 @@ export function SchemaEditor({
           type="button"
           onClick={addField}
           disabled={disabled}
-          className="rounded-lg border px-3 py-1.5 text-sm font-semibold hover:border-[#f97316] disabled:opacity-50"
+          className="rounded-sm border px-3 py-1.5 text-sm font-semibold hover:border-accent disabled:opacity-50"
         >
           + Добавить поле
         </button>
@@ -345,7 +345,7 @@ export function SchemaEditor({
       </div>
 
       {!check.ok && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-500">
+        <p role="alert" className="text-xs text-red-700 dark:text-red-400">
           {check.message}
         </p>
       )}

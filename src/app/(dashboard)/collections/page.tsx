@@ -118,27 +118,27 @@ export default function CollectionsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-2xl font-extrabold">Коллекции</h1>
 
-      <section className="rounded-2xl border p-4 flex flex-col gap-3">
+      <section className="rounded-sm border p-4 flex flex-col gap-3">
         <h2 className="font-bold">Новая коллекция</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Название коллекции"
-            className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
+            className="rounded-sm border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent"
           />
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             placeholder="slug (авто из названия)"
-            className="rounded-lg border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-[#f97316]"
+            className="rounded-sm border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-accent"
           />
         </div>
         <input
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           placeholder="Описание"
-          className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
+          className="rounded-sm border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs opacity-60">Иконка:</span>
@@ -146,7 +146,7 @@ export default function CollectionsPage() {
             <button
               key={ic}
               onClick={() => setIcon(ic)}
-              className={`rounded-lg border px-3 py-1.5 text-xs ${icon === ic ? "border-[#f97316] font-semibold" : ""}`}
+              className={`rounded-sm border px-3 py-1.5 text-xs ${icon === ic ? "border-accent font-semibold" : ""}`}
             >
               {ic}
             </button>
@@ -155,7 +155,7 @@ export default function CollectionsPage() {
         <p className="text-xs opacity-60">
           slug: <span className="font-mono">/{preview || "—"}</span>
         </p>
-        <details className="rounded-xl border border-dashed p-3">
+        <details className="rounded-sm border border-dashed p-3">
           <summary className="cursor-pointer text-sm font-semibold">
             Поля коллекции{" "}
             <span className="font-normal opacity-60">
@@ -173,12 +173,12 @@ export default function CollectionsPage() {
             />
           </div>
         </details>
-        {error && <p className="text-sm text-red-600 dark:text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
         <div>
           <button
             onClick={handleCreate}
             disabled={create.isPending}
-            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
+            className="rounded-sm bg-accent-strong px-4 py-2 text-sm font-semibold text-white hover:bg-accent-deep disabled:opacity-50"
           >
             {create.isPending ? "Создание…" : "Создать"}
           </button>
@@ -188,14 +188,14 @@ export default function CollectionsPage() {
       {isLoading && (
         <div className="grid sm:grid-cols-2 gap-3" aria-label="Загрузка коллекций" role="status">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl border p-4 flex flex-col gap-2 animate-pulse" aria-hidden="true">
+            <div key={i} className="rounded-sm border p-4 flex flex-col gap-2 animate-pulse" aria-hidden="true">
               <div className="h-5 w-2/3 rounded bg-current opacity-10" />
               <div className="h-3 w-1/3 rounded bg-current opacity-10" />
               <div className="h-3 w-full rounded bg-current opacity-10" />
               <div className="mt-2 flex gap-2">
-                <div className="h-7 w-20 rounded-lg bg-current opacity-10" />
-                <div className="h-7 w-24 rounded-lg bg-current opacity-10" />
-                <div className="h-7 w-20 rounded-lg bg-current opacity-10" />
+                <div className="h-7 w-20 rounded-sm bg-current opacity-10" />
+                <div className="h-7 w-24 rounded-sm bg-current opacity-10" />
+                <div className="h-7 w-20 rounded-sm bg-current opacity-10" />
               </div>
             </div>
           ))}
@@ -206,15 +206,20 @@ export default function CollectionsPage() {
         {(data ?? []).map((c) => {
           const fields = parseCollectionSchema(c.schemaJson);
           return (
-          <div key={c.id} className="rounded-2xl border p-4 flex flex-col gap-2">
-            <Link href={`/collections/${c.slug}`} className="font-bold hover:text-[#f97316]">
-              <span className="mr-2 inline-block rounded bg-[#f97316]/15 px-2 py-0.5 text-xs">{c.icon}</span>
+          <div
+            key={c.id}
+            data-testid="collection-card"
+            data-slug={c.slug}
+            className="rounded-sm border p-4 flex flex-col gap-2"
+          >
+            <Link href={`/collections/${c.slug}`} className="font-bold hover:text-accent">
+              <span className="mr-2 inline-block rounded bg-accent/15 px-2 py-0.5 text-xs">{c.icon}</span>
               {c.name}
             </Link>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-mono opacity-60">/{c.slug}</span>
               <span
-                className="rounded-full bg-[#f97316]/12 px-2.5 py-0.5 font-bold text-[#9a3412] dark:text-[#f97316]"
+                className="rounded-full bg-accent/12 px-2.5 py-0.5 font-bold text-accent-ink dark:text-accent-soft"
                 aria-label={`Записей: ${c._count.entries}`}
               >
                 {c._count.entries} записей
@@ -236,28 +241,28 @@ export default function CollectionsPage() {
                     )}
                   </>
                 ) : (
-                  <span className="opacity-50">Без настраиваемых полей</span>
+                  <span className="opacity-60">Без настраиваемых полей</span>
                 )}
               </div>
             )}
             {isAdmin && editingId === c.id && (
-              <div className="flex flex-col gap-2 rounded-xl border border-dashed p-2">
+              <div className="flex flex-col gap-2 rounded-sm border border-dashed p-2">
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   aria-label="Название коллекции"
                   placeholder="Название"
-                  className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
+                  className="rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent"
                 />
                 <input
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
                   aria-label="Описание коллекции"
                   placeholder="Описание"
-                  className="rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]"
+                  className="rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent"
                 />
                 <p className="font-mono text-xs opacity-60">slug: /{c.slug} (не изменяется)</p>
-                <details className="rounded-lg border border-dashed p-2">
+                <details className="rounded-sm border border-dashed p-2">
                   <summary className="cursor-pointer text-xs font-semibold">
                     Поля коллекции ({editFields.length})
                   </summary>
@@ -270,18 +275,18 @@ export default function CollectionsPage() {
                     />
                   </div>
                 </details>
-                {editError && <p className="text-xs text-red-600 dark:text-red-500">{editError}</p>}
+                {editError && <p className="text-xs text-red-700 dark:text-red-400">{editError}</p>}
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleSaveEdit(c.id)}
                     disabled={update.isPending}
-                    className="rounded-lg bg-[#c2410c] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
+                    className="rounded-sm bg-accent-strong px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-deep disabled:opacity-50"
                   >
                     {update.isPending ? "Сохранение…" : "Сохранить"}
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
-                    className="rounded-lg border px-3 py-1.5 text-xs"
+                    className="rounded-sm border px-3 py-1.5 text-xs"
                   >
                     Отмена
                   </button>
@@ -289,13 +294,13 @@ export default function CollectionsPage() {
               </div>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Link href={`/collections/${c.slug}`} className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316]">
+              <Link href={`/collections/${c.slug}`} className="rounded-sm border px-3 py-1.5 text-xs hover:border-accent">
                 Открыть
               </Link>
               {isAdmin && editingId !== c.id && (
                 <button
                   onClick={() => startEdit(c)}
-                  className="rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316]"
+                  className="rounded-sm border px-3 py-1.5 text-xs hover:border-accent"
                 >
                   Изменить
                 </button>
@@ -305,7 +310,7 @@ export default function CollectionsPage() {
                 onClick={() => handleDelete(c.id, c.name)}
                 disabled={remove.isPending}
                 aria-label={`Удалить ${c.name}`}
-                className="rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-600 dark:text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                className="rounded-sm border border-red-500/50 px-3 py-1.5 text-xs text-red-700 dark:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
               >
                 Удалить
               </button>
@@ -315,7 +320,7 @@ export default function CollectionsPage() {
           );
         })}
         {!isLoading && !data?.length && (
-          <div className="rounded-2xl border border-dashed p-8 text-center">
+          <div className="rounded-sm border border-dashed p-8 text-center">
             <p className="font-bold">Создайте первую коллекцию</p>
             <p className="mt-1 text-sm opacity-60">Заполните форму выше — slug подставится автоматически.</p>
           </div>

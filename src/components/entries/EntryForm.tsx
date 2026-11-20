@@ -53,9 +53,9 @@ export type EntryFormInitial = {
 };
 
 const inputCls =
-  "w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]";
+  "w-full rounded-sm border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent";
 const labelCls = "text-xs font-semibold uppercase tracking-wide opacity-60";
-const errCls = "text-xs text-red-600 dark:text-red-500";
+const errCls = "text-xs text-red-700 dark:text-red-400";
 
 function fieldInputType(field: CollectionField): string {
   if (field.type === "number") return "number";
@@ -392,7 +392,7 @@ export function EntryForm({
       </div>
 
       {customMode ? (
-        <fieldset className="flex flex-col gap-3 rounded-xl border p-3">
+        <fieldset className="flex flex-col gap-3 rounded-sm border p-3">
           <legend className="px-1 text-xs font-semibold uppercase tracking-wide opacity-60">
             Поля коллекции «{collections?.find((c) => c.id === collectionId)?.name ?? "—"}»
           </legend>
@@ -451,19 +451,19 @@ export function EntryForm({
         </div>
       </div>
 
-      {serverError && <p role="alert" className="text-sm text-red-600 dark:text-red-500">{serverError}</p>}
+      {serverError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{serverError}</p>}
 
       <div className="flex gap-2">
         <button
           onClick={handleSave}
           disabled={saving}
           aria-busy={saving}
-          className="rounded-xl bg-[#c2410c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
+          className="rounded-sm bg-accent-strong px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-deep disabled:opacity-50"
         >
           {saving ? "Сохранение…" : isEdit ? "Сохранить" : "Создать"}
         </button>
         {onCancel && (
-          <button onClick={onCancel} disabled={saving} className="rounded-xl border px-5 py-2.5 text-sm disabled:opacity-50">
+          <button onClick={onCancel} disabled={saving} className="rounded-sm border px-5 py-2.5 text-sm disabled:opacity-50">
             Отмена
           </button>
         )}

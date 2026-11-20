@@ -10,7 +10,7 @@ type Props = {
 };
 
 const inputCls =
-  "w-full rounded-lg border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-[#f97316]";
+  "w-full rounded-sm border bg-transparent px-3 py-1.5 text-sm outline-none focus:border-accent";
 const labelCls = "mb-1 block text-xs font-semibold opacity-70";
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
@@ -108,7 +108,7 @@ function JsonListEditor({
           type="button"
           onClick={handleReset}
           aria-label={`Сбросить к дефолту: ${label}`}
-          className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-[#f97316] hover:text-[#f97316]"
+          className="rounded-sm border px-2.5 py-1 text-xs font-semibold hover:border-accent hover:text-accent"
         >
           Сбросить к дефолту
         </button>
@@ -124,11 +124,11 @@ function JsonListEditor({
         aria-invalid={Boolean(error)}
         className={`${inputCls} font-mono text-xs ${error ? "border-red-500" : ""}`}
       />
-      {error ? <div id={errorId} role="alert" className="text-xs font-semibold text-red-600 dark:text-red-500">{error}</div> : null}
+      {error ? <div id={errorId} role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">{error}</div> : null}
       <button
         type="button"
         onClick={apply}
-        className="self-start rounded-lg bg-[#c2410c] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#9a3412]"
+        className="self-start rounded-sm bg-accent-strong px-4 py-1.5 text-xs font-bold text-white hover:bg-accent-deep"
       >
         Применить JSON
       </button>

@@ -23,19 +23,31 @@ function PublicFieldValue({ field, value }: { field: CollectionField; value: unk
   }
   if (field.type === "url" && typeof value === "string") {
     return (
-      <a href={value} rel="noreferrer noopener" className="underline decoration-[#f97316]/40 underline-offset-2 hover:text-[#9a3412] dark:hover:text-[#fb923c]" target="_blank">
+      <a
+        href={value}
+        rel="noreferrer noopener"
+        className="underline decoration-accent/40 underline-offset-2 hover:text-accent-ink dark:hover:text-accent-soft"
+        target="_blank"
+      >
         {value}
       </a>
     );
   }
   if (field.type === "email" && typeof value === "string") {
     return (
-      <a href={`mailto:${value}`} className="underline decoration-[#f97316]/40 underline-offset-2 hover:text-[#9a3412] dark:hover:text-[#fb923c]">
+      <a
+        href={`mailto:${value}`}
+        className="underline decoration-accent/40 underline-offset-2 hover:text-accent-ink dark:hover:text-accent-soft"
+      >
         {value}
       </a>
     );
   }
-  return <span className="whitespace-pre-line">{typeof value === "object" ? JSON.stringify(value) : String(value)}</span>;
+  return (
+    <span className="whitespace-pre-line">
+      {typeof value === "object" ? JSON.stringify(value) : String(value)}
+    </span>
+  );
 }
 
 const getPublishedEntry = cache(async (collectionSlug: string, entrySlug: string) => {
@@ -103,41 +115,51 @@ export default async function PublicEntryPage({ params }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-[#f4f3fa] text-neutral-900 dark:bg-ink-950 dark:text-neutral-100">
-      <header className="border-b border-black/10 bg-white/70 backdrop-blur dark:border-white/10 dark:bg-ink-900/60">
+    <div className="min-h-screen bg-paper text-ink-950 dark:bg-ink-950 dark:text-[#f2ede2]">
+      <header className="border-b border-ink-950/10 bg-paper/85 backdrop-blur dark:border-white/10 dark:bg-ink-950/85">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className="font-display text-lg font-extrabold">
-            <span className="text-[#9a3412] dark:text-[#f97316]">Verso</span>
+          <Link href="/" className="inline-flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="grid size-7 place-items-center rounded-[2px] bg-accent-strong font-mono text-[10px] font-semibold text-white"
+            >
+              V
+            </span>
+            <span className="font-display text-lg font-bold">Verso</span>
           </Link>
           <Link
             href={`/c/${entry.collection.slug}`}
-            className="text-sm font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+            className="font-mono text-[10px] uppercase tracking-[0.14em] text-stone-600 hover:text-accent-ink dark:text-stone-400 dark:hover:text-accent-soft"
           >
             ← {entry.collection.name}
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl px-6 py-10">
-        <article className="flex flex-col gap-6">
-          <header className="flex flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#9a3412] dark:text-[#fb923c]">
+      <main className="mx-auto w-full max-w-4xl px-6 py-10 sm:py-14">
+        <article className="flex flex-col gap-8">
+          <header className="max-w-2xl">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent-ink dark:text-accent-soft">
               {entry.collection.name}
             </p>
-            <h1 className="font-display text-3xl font-extrabold leading-tight sm:text-4xl">{entry.title}</h1>
+            <h1 className="mt-3 font-display text-4xl font-bold leading-[1.06] tracking-[-0.03em] sm:text-5xl">
+              {entry.title}
+            </h1>
             {entry.excerpt ? (
-              <p className="max-w-2xl text-base leading-relaxed text-neutral-600 dark:text-neutral-400">
+              <p className="mt-4 text-lg leading-relaxed text-stone-600 dark:text-stone-300">
                 {entry.excerpt}
               </p>
             ) : null}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-              {publishedLabel ? <time dateTime={entry.publishedAt!.toISOString()}>{publishedLabel}</time> : null}
+            <div className="mt-5 flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-[0.12em] text-stone-600 dark:text-stone-400">
+              {publishedLabel ? (
+                <time dateTime={entry.publishedAt!.toISOString()}>{publishedLabel}</time>
+              ) : null}
               {entry.tags.length > 0 ? (
                 <ul className="flex flex-wrap gap-2" aria-label="Теги">
                   {entry.tags.map(({ tag }) => (
                     <li
                       key={tag.name}
-                      className="rounded-full border border-black/10 px-2.5 py-0.5 font-semibold dark:border-white/15"
+                      className="border border-ink-950/15 px-2 py-0.5 dark:border-white/15"
                       style={tag.color ? { borderColor: `${tag.color}55` } : undefined}
                     >
                       {tag.name}
@@ -149,17 +171,23 @@ export default async function PublicEntryPage({ params }: Props) {
           </header>
 
           {details.length > 0 ? (
-            <section aria-labelledby="entry-details" className="flex flex-col gap-2">
-              <h2 id="entry-details" className="text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+            <section aria-labelledby="entry-details">
+              <h2
+                id="entry-details"
+                className="font-mono text-[10px] uppercase tracking-[0.2em] text-stone-600 dark:text-stone-400"
+              >
                 Детали
               </h2>
-              <dl className="grid gap-px overflow-hidden rounded-2xl border border-black/10 bg-black/10 sm:grid-cols-2 dark:border-white/10 dark:bg-white/10">
+              <dl className="mt-3 border-t border-ink-950/20 dark:border-white/20">
                 {details.map(({ field, value }) => (
-                  <div key={field.key} className="bg-white p-4 dark:bg-ink-900">
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  <div
+                    key={field.key}
+                    className="grid gap-1 border-b border-ink-950/10 py-3 dark:border-white/10 sm:grid-cols-[12rem_1fr] sm:gap-4"
+                  >
+                    <dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-stone-600 dark:text-stone-400">
                       {field.label}
                     </dt>
-                    <dd className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                    <dd className="text-sm text-ink-950 dark:text-stone-200">
                       <PublicFieldValue field={field} value={value} />
                     </dd>
                   </div>
@@ -175,16 +203,16 @@ export default async function PublicEntryPage({ params }: Props) {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-black/15 p-8 text-center text-sm text-neutral-500 dark:border-white/15 dark:text-neutral-400">
+            <div className="border border-dashed border-ink-950/20 p-8 text-center text-sm text-stone-600 dark:border-white/20 dark:text-stone-400">
               У этой записи пока нет блоков.
             </div>
           )}
         </article>
       </main>
 
-      <footer className="border-t border-black/10 py-6 dark:border-white/10">
-        <p className="mx-auto w-full max-w-4xl px-6 text-xs text-neutral-500 dark:text-neutral-400">
-          Опубликовано в <span className="font-semibold text-neutral-700 dark:text-neutral-200">Verso</span>
+      <footer className="border-t border-ink-950/10 py-6 dark:border-white/10">
+        <p className="mx-auto w-full max-w-4xl px-6 font-mono text-[10px] uppercase tracking-[0.12em] text-stone-600 dark:text-stone-400">
+          Опубликовано в <span className="font-semibold text-stone-700 dark:text-stone-200">Verso</span>
         </p>
       </footer>
     </div>

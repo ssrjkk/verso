@@ -56,7 +56,7 @@ export function ThemeToggle({
         className={cn(
           compact
             ? "grid size-9 place-items-center rounded-full border opacity-60"
-            : "rounded-lg border px-3 py-1.5 text-sm opacity-60",
+            : "rounded-sm border px-3 py-1.5 text-sm opacity-60",
           className,
         )}
       >
@@ -74,8 +74,8 @@ export function ThemeToggle({
       title={compact ? label : undefined}
       className={cn(
         compact
-          ? "grid size-9 place-items-center rounded-full border transition hover:border-[#f97316]/60 hover:text-[#9a3412] dark:hover:text-[#fb923c]"
-          : "rounded-lg border px-3 py-1.5 text-sm",
+          ? "grid size-9 place-items-center rounded-full border transition hover:border-accent/60 hover:text-accent-ink dark:hover:text-accent-soft"
+          : "rounded-sm border px-3 py-1.5 text-sm",
         className,
       )}
     >

@@ -6,18 +6,22 @@ import ErrorPage from "@/app/error";
 import GlobalError from "@/app/global-error";
 
 describe("статические страницы и error boundaries", () => {
-  it("лендинг: hero, шесть модулей, процесс, API и CTA", () => {
+  it("лендинг: hero, поля, шаблоны, модули, процесс, API и CTA", () => {
     const html = renderToStaticMarkup(<Home />);
 
-    expect(html).toContain("Verso — контент");
-    expect(html).toContain("Шесть модулей из коробки");
+    expect(html).toContain("редактурой");
+    expect(html).toContain("а не CRUD");
+    expect(html).toContain("Схема, которую не надо программировать");
+    expect(html).toContain("Шаблоны коллекций");
+    expect(html).toContain("Недвижимость");
+    expect(html).toContain("Один инструмент вместо шести сервисов");
     for (const title of [
-      "Конструктор страниц",
-      "Коллекции",
+      "Коллекции и поля",
+      "Блочный конструктор",
+      "Редполитика",
       "Медиатека",
       "SEO-инспектор",
-      "Headless API",
-      "Вебхуки и ревизии",
+      "Headless API и вебхуки",
     ]) {
       expect(html).toContain(title);
     }

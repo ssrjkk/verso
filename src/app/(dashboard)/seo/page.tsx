@@ -42,8 +42,8 @@ export default function SeoPage() {
 
   const titleLen = og.title.length;
   const descLen = og.description.length;
-  const titleColor = titleLen === 0 ? "opacity-60" : titleLen <= 50 ? "text-emerald-500" : titleLen <= 60 ? "text-amber-500" : "text-red-600 dark:text-red-500";
-  const descColor = descLen === 0 ? "opacity-60" : descLen <= 140 ? "text-emerald-500" : descLen <= 160 ? "text-amber-500" : "text-red-600 dark:text-red-500";
+  const titleColor = titleLen === 0 ? "opacity-60" : titleLen <= 50 ? "text-emerald-700 dark:text-emerald-400" : titleLen <= 60 ? "text-amber-700 dark:text-amber-400" : "text-red-700 dark:text-red-400";
+  const descColor = descLen === 0 ? "opacity-60" : descLen <= 140 ? "text-emerald-700 dark:text-emerald-400" : descLen <= 160 ? "text-amber-700 dark:text-amber-400" : "text-red-700 dark:text-red-400";
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,38 +51,38 @@ export default function SeoPage() {
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
-          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="/old-path" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="/new-path" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <select value={code} onChange={(e) => setCode(Number(e.target.value) as 301 | 302)} aria-label="Код статуса редиректа" className="rounded-lg border bg-transparent px-2 py-2 text-sm">
+          <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="/old-path" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="/new-path" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <select value={code} onChange={(e) => setCode(Number(e.target.value) as 301 | 302)} aria-label="Код статуса редиректа" className="rounded-sm border bg-transparent px-2 py-2 text-sm">
             <option value={301}>301</option>
             <option value={302}>302</option>
           </select>
           <button
             onClick={() => from && to && upsert.mutate({ fromPath: from, toPath: to, statusCode: code })}
-            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]"
+            className="rounded-sm bg-accent-strong px-4 py-2 text-sm text-white hover:bg-accent-deep"
           >
             Добавить
           </button>
         </div>
         <p className="text-xs opacity-60">
           Slug: только a-z, 0-9 и дефисы, без кириллицы и пробелов. Транслит: «Новости компании» → «novosti-kompanii».
-          {!slugOk && <span className="text-red-600 dark:text-red-500"> Текущий slug «{slugHint}» невалиден.</span>}
+          {!slugOk && <span className="text-red-700 dark:text-red-400"> Текущий slug «{slugHint}» невалиден.</span>}
         </p>
       </section>
 
       <section className="flex flex-col gap-2">
         {(data ?? []).map((r) => (
-          <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+          <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border p-3 text-sm">
             <span>{r.fromPath} → {r.toPath}</span>
             <span className="flex items-center gap-2 opacity-80">
               <span>{r.statusCode} · {r.isActive ? "активен" : "выкл"}</span>
-              <span className="rounded-full bg-[#f97316]/12 px-2 py-0.5 text-[11px] font-bold text-[#9a3412] dark:text-[#f97316]">
+              <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[11px] font-bold text-accent-ink dark:text-accent-soft">
                 hits {r.hits}
               </span>
               <button onClick={() => toggle.mutate({ id: r.id, isActive: !r.isActive })} className="rounded border px-2 py-0.5 text-xs">
                 {r.isActive ? "Выкл" : "Вкл"}
               </button>
-              <button onClick={() => { if (confirm(`Удалить ${r.fromPath}?`)) remove.mutate({ id: r.id }); }} className="text-xs text-red-600 dark:text-red-500">
+              <button onClick={() => { if (confirm(`Удалить ${r.fromPath}?`)) remove.mutate({ id: r.id }); }} className="text-xs text-red-700 dark:text-red-400">
                 Удалить
               </button>
             </span>
@@ -102,7 +102,7 @@ export default function SeoPage() {
               placeholder={k}
               maxLength={k === "title" ? 120 : k === "description" ? 300 : undefined}
               aria-label={`OG ${k}`}
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm"
+              className="rounded-sm border bg-transparent px-3 py-2 text-sm"
             />
           ))}
         </div>
@@ -116,10 +116,10 @@ export default function SeoPage() {
       <section className="flex flex-col gap-2">
         <h2 className="font-bold">Sitemap</h2>
         <div className="flex gap-2">
-          <button onClick={loadSitemap} className="rounded-lg border px-4 py-2 text-sm">Предпросмотр</button>
-          <button onClick={downloadSitemap} className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]">Скачать</button>
+          <button onClick={loadSitemap} className="rounded-sm border px-4 py-2 text-sm">Предпросмотр</button>
+          <button onClick={downloadSitemap} className="rounded-sm bg-accent-strong px-4 py-2 text-sm text-white hover:bg-accent-deep">Скачать</button>
         </div>
-        {sitemap && <pre className="max-h-64 overflow-auto rounded-xl border p-3 text-xs">{sitemap}</pre>}
+        {sitemap && <pre className="max-h-64 overflow-auto rounded-sm border p-3 text-xs">{sitemap}</pre>}
       </section>
     </div>
   );

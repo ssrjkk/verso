@@ -109,7 +109,7 @@ export default function CalendarPage() {
       <div className="flex items-center gap-3">
         <h1 className="font-display text-2xl font-extrabold capitalize">{monthName}</h1>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => shiftMonth(-1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]">
+          <button onClick={() => shiftMonth(-1)} className="rounded-sm border px-3 py-1.5 text-sm hover:border-accent">
             ←
           </button>
           <button
@@ -118,11 +118,11 @@ export default function CalendarPage() {
               setMonth(now.getMonth());
               pickDay(now);
             }}
-            className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]"
+            className="rounded-sm border px-3 py-1.5 text-sm hover:border-accent"
           >
             Сегодня
           </button>
-          <button onClick={() => shiftMonth(1)} className="rounded-lg border px-3 py-1.5 text-sm hover:border-[#f97316]">
+          <button onClick={() => shiftMonth(1)} className="rounded-sm border px-3 py-1.5 text-sm hover:border-accent">
             →
           </button>
         </div>
@@ -130,7 +130,7 @@ export default function CalendarPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {isLoading ? (
-          <div className="rounded-2xl border p-3" aria-label="Загрузка календаря">
+          <div className="rounded-sm border p-3" aria-label="Загрузка календаря">
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase opacity-60">
               {WEEKDAYS.map((w) => (
                 <div key={w} className="py-1">
@@ -140,12 +140,12 @@ export default function CalendarPage() {
             </div>
             <div className="grid grid-cols-7 gap-1">
               {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="skeleton min-h-[84px] animate-pulse rounded-xl bg-black/5 p-1.5 dark:bg-white/10" />
+                <div key={i} className="skeleton min-h-[84px] animate-pulse rounded-sm bg-ink-950/5 p-1.5 dark:bg-white/10" />
               ))}
             </div>
           </div>
         ) : (
-        <div className="rounded-2xl border p-3">
+        <div className="rounded-sm border p-3">
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase opacity-60">
             {WEEKDAYS.map((w) => (
               <div key={w} className="py-1">
@@ -164,11 +164,11 @@ export default function CalendarPage() {
                 <button
                   key={i}
                   onClick={() => pickDay(d)}
-                  className={`min-h-[84px] min-w-0 rounded-xl border p-1.5 text-left text-xs hover:border-[#f97316] ${
-                    inMonth ? "" : "text-neutral-600 dark:text-neutral-400"
-                  } ${isSelected ? "border-[#f97316]" : ""} ${isToday ? "bg-[#f97316]/10" : ""}`}
+                  className={`min-h-[84px] min-w-0 rounded-sm border p-1.5 text-left text-xs hover:border-accent ${
+                    inMonth ? "" : "text-stone-600 dark:text-stone-400"
+                  } ${isSelected ? "border-accent" : ""} ${isToday ? "bg-accent/10" : ""}`}
                 >
-                  <div className={`font-bold ${isToday ? "text-[#9a3412] dark:text-[#f97316]" : ""}`}>{d.getDate()}</div>
+                  <div className={`font-bold ${isToday ? "text-accent-ink dark:text-accent-soft" : ""}`}>{d.getDate()}</div>
                   <div className="mt-1 flex flex-col gap-0.5">
                     {(items?.entries ?? []).slice(0, 2).map((e) => (
                       <span key={e.id} className="truncate rounded bg-emerald-500/15 px-1 py-0.5" title={e.title}>
@@ -178,7 +178,7 @@ export default function CalendarPage() {
                     {(items?.tasks ?? []).slice(0, 2).map((t) => (
                       <span
                         key={t.id}
-                        className={`truncate rounded px-1 py-0.5 ${t.status === "DONE" ? "bg-black/10 line-through dark:bg-white/10" : "bg-amber-500/15"}`}
+                        className={`truncate rounded px-1 py-0.5 ${t.status === "DONE" ? "bg-ink-950/10 line-through dark:bg-white/10" : "bg-amber-500/15"}`}
                         title={t.title}
                       >
                         {t.title}
@@ -199,7 +199,7 @@ export default function CalendarPage() {
           </div>
         </div>
         )}
-        <aside className="flex min-w-0 flex-col gap-3 rounded-2xl border p-4" aria-live="polite">
+        <aside className="flex min-w-0 flex-col gap-3 rounded-sm border p-4" aria-live="polite">
           <h2 className="font-bold">
             {new Date(selected + "T00:00:00").toLocaleDateString("ru-RU", {
               weekday: "long",
@@ -214,9 +214,9 @@ export default function CalendarPage() {
               <Link
                 key={e.id}
                 href={`/entries/${e.id}`}
-                className="rounded-lg border px-2 py-1.5 text-sm hover:border-[#f97316]"
+                className="rounded-sm border px-2 py-1.5 text-sm hover:border-accent"
               >
-                {e.title} <span className="opacity-50">· {e.status}</span>
+                {e.title} <span className="opacity-60">· {e.status}</span>
               </Link>
             ))}
             {!selectedItems?.entries.length && <p className="text-xs opacity-60">Нет запланированного.</p>}
@@ -225,7 +225,7 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-1.5">
             <h3 className="text-xs font-semibold uppercase opacity-60">Задачи</h3>
             {(selectedItems?.tasks ?? []).map((t) => (
-              <div key={t.id} className="flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm">
+              <div key={t.id} className="flex items-center gap-2 rounded-sm border px-2 py-1.5 text-sm">
                 <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
@@ -233,13 +233,13 @@ export default function CalendarPage() {
                     onChange={() => toggleTask.mutate({ id: t.id, status: t.status === "DONE" ? "TODO" : "DONE" })}
                   />
                   <span className={`truncate ${t.status === "DONE" ? "line-through opacity-60" : ""}`}>{t.title}</span>
-                  <span className="ml-auto shrink-0 text-xs opacity-50">{t.priority}</span>
+                  <span className="ml-auto shrink-0 text-xs opacity-60">{t.priority}</span>
                 </label>
                 <button
                   onClick={() => { if (confirm(`Удалить задачу «${t.title}»?`)) removeTask.mutate({ id: t.id }); }}
                   aria-label={`Удалить задачу ${t.title}`}
                   title="Удалить задачу"
-                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-red-600 dark:text-red-500 hover:bg-red-500/10"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-red-700 dark:text-red-400 hover:bg-red-500/10"
                 >
                   ✕
                 </button>
@@ -254,21 +254,21 @@ export default function CalendarPage() {
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
               placeholder="Название задачи"
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-[#f97316]"
+              className="rounded-sm border bg-transparent px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <input
               type="date"
               value={taskDue}
               onChange={(e) => setTaskDue(e.target.value)}
               aria-label="Дата задачи"
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm"
+              className="rounded-sm border bg-transparent px-3 py-2 text-sm"
             />
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={taskEntryId}
                 onChange={(e) => setTaskEntryId(e.target.value)}
                 aria-label="Запись задачи"
-                className="w-full min-w-0 rounded-lg border bg-transparent px-2 py-2 text-sm"
+                className="w-full min-w-0 rounded-sm border bg-transparent px-2 py-2 text-sm"
               >
                 <option value="">Без записи</option>
                 {allEntries.map((e) => (
@@ -281,7 +281,7 @@ export default function CalendarPage() {
                 value={taskPriority}
                 onChange={(e) => setTaskPriority(e.target.value as Priority)}
                 aria-label="Приоритет задачи"
-                className="w-full min-w-0 rounded-lg border bg-transparent px-2 py-2 text-sm"
+                className="w-full min-w-0 rounded-sm border bg-transparent px-2 py-2 text-sm"
               >
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
@@ -293,7 +293,7 @@ export default function CalendarPage() {
             <button
               onClick={handleCreateTask}
               disabled={createTask.isPending || !taskTitle.trim()}
-              className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9a3412] disabled:opacity-50"
+              className="rounded-sm bg-accent-strong px-4 py-2 text-sm font-semibold text-white hover:bg-accent-deep disabled:opacity-50"
             >
               {createTask.isPending ? "Создание…" : "Создать задачу"}
             </button>

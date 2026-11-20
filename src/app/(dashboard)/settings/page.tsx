@@ -48,37 +48,41 @@ export default function SettingsPage() {
       <section className="flex flex-col gap-4">
         <h1 className="font-display text-2xl font-extrabold">Настройки · API-ключи</h1>
         {lastRaw && (
-          <div className="break-all rounded-xl border border-[#f97316] p-3 text-sm">
+          <div className="break-all rounded-sm border border-accent p-3 text-sm">
             Новый ключ (показывается один раз):{" "}
-            <code className="rounded bg-black/5 px-1.5 py-0.5 font-mono dark:bg-white/10">{lastRaw}</code>{" "}
+            <code className="rounded bg-ink-950/5 px-1.5 py-0.5 font-mono dark:bg-white/10">{lastRaw}</code>{" "}
             <button
               type="button"
               onClick={() => void navigator.clipboard.writeText(lastRaw)}
-              className="ml-2 rounded-lg border px-2 py-1 text-xs font-semibold hover:border-[#f97316]"
+              className="ml-2 rounded-sm border px-2 py-1 text-xs font-semibold hover:border-accent"
             >
               Скопировать
             </button>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название ключа…" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} aria-label="Область ключа" className="rounded-lg border bg-transparent px-2 py-2 text-sm">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название ключа…" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} aria-label="Область ключа" className="rounded-sm border bg-transparent px-2 py-2 text-sm">
             <option value="READ">READ</option>
             <option value="READ_WRITE">READ_WRITE</option>
           </select>
-          <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Срок действия" className="rounded-lg border bg-transparent px-3 py-2 text-sm" title="Срок действия" />
+          <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-label="Срок действия" className="rounded-sm border bg-transparent px-3 py-2 text-sm" title="Срок действия" />
           <button
             onClick={() => name && create.mutate(
               { name, scope, ...(expiry ? { expiresAt: new Date(expiry).toISOString() } : {}) },
               { onSuccess: (d) => { setLastRaw(d.raw); setName(""); setExpiry(""); } },
             )}
-            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]"
+            className="rounded-sm bg-accent-strong px-4 py-2 text-sm text-white hover:bg-accent-deep"
           >
             Выпустить
           </button>
         </div>
         {(keys ?? []).map((k) => (
-          <div key={k.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+          <div
+            key={k.id}
+            data-testid="api-key-row"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-sm border p-3 text-sm"
+          >
             <span>
               {k.name} · {k.scope} · {k.prefix}… ·{" "}
               {k.expiresAt ? `до ${new Date(k.expiresAt).toLocaleDateString()}` : "бессрочный"} ·{" "}
@@ -94,7 +98,7 @@ export default function SettingsPage() {
               >
                 Expiry
               </button>
-              <button onClick={() => { if (confirm(`Отозвать ${k.name}?`)) revoke.mutate({ id: k.id }); }} className="text-xs text-red-600 dark:text-red-500">
+              <button onClick={() => { if (confirm(`Отозвать ${k.name}?`)) revoke.mutate({ id: k.id }); }} className="text-xs text-red-700 dark:text-red-400">
                 Отозвать
               </button>
             </span>
@@ -104,28 +108,32 @@ export default function SettingsPage() {
 
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-xl font-extrabold">Вебхуки</h2>
-        {testResult && <pre className="overflow-auto whitespace-pre-wrap break-all rounded-xl border p-2 text-xs">{testResult}</pre>}
+        {testResult && <pre className="overflow-auto whitespace-pre-wrap break-all rounded-sm border p-2 text-xs">{testResult}</pre>}
         <div className="flex flex-wrap gap-2">
-          <input value={whForm.name} onChange={(e) => setWhForm({ ...whForm, name: e.target.value })} placeholder="Название" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <input value={whForm.url} onChange={(e) => setWhForm({ ...whForm, url: e.target.value })} placeholder="https://…" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <input value={whForm.secret} onChange={(e) => setWhForm({ ...whForm, secret: e.target.value })} placeholder="secret" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
-          <input value={whForm.events} onChange={(e) => setWhForm({ ...whForm, events: e.target.value })} placeholder="events csv" className="rounded-lg border bg-transparent px-3 py-2 text-sm" />
+          <input value={whForm.name} onChange={(e) => setWhForm({ ...whForm, name: e.target.value })} placeholder="Название" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <input value={whForm.url} onChange={(e) => setWhForm({ ...whForm, url: e.target.value })} placeholder="https://…" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <input value={whForm.secret} onChange={(e) => setWhForm({ ...whForm, secret: e.target.value })} placeholder="secret" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
+          <input value={whForm.events} onChange={(e) => setWhForm({ ...whForm, events: e.target.value })} placeholder="events csv" className="rounded-sm border bg-transparent px-3 py-2 text-sm" />
           <button
             onClick={() => whForm.name && whForm.url && whCreate.mutate(whForm)}
-            className="rounded-lg bg-[#c2410c] px-4 py-2 text-sm text-white hover:bg-[#9a3412]"
+            className="rounded-sm bg-accent-strong px-4 py-2 text-sm text-white hover:bg-accent-deep"
           >
             Добавить
           </button>
         </div>
         {webhooks.map((w) => (
-          <div key={w.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+          <div
+            key={w.id}
+            data-testid="webhook-row"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-sm border p-3 text-sm"
+          >
             <span className="break-all">{w.name} · {w.url} · {w.events} · {w.isActive ? "активен" : "выкл"} · {w.lastStatus ? `статус ${w.lastStatus}` : "не доставлялся"}{w.lastDeliveryAt ? ` (${new Date(w.lastDeliveryAt).toLocaleString()})` : ""}</span>
             <span className="flex gap-2 text-xs">
               <button onClick={() => whToggle.mutate({ id: w.id, isActive: !w.isActive })} className="underline">
                 {w.isActive ? "Выкл" : "Вкл"}
               </button>
               <button onClick={() => whTest.mutate({ id: w.id })} className="underline">Тест</button>
-              <button onClick={() => { if (confirm(`Удалить ${w.name}?`)) whRemove.mutate({ id: w.id }); }} className="text-red-600 dark:text-red-500">
+              <button onClick={() => { if (confirm(`Удалить ${w.name}?`)) whRemove.mutate({ id: w.id }); }} className="text-red-700 dark:text-red-400">
                 Удалить
               </button>
             </span>
@@ -143,7 +151,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => void utils.webhook.deliveries.invalidate()}
-              className="rounded-lg border px-2 py-1 font-semibold hover:border-[#f97316]"
+              className="rounded-sm border px-2 py-1 font-semibold hover:border-accent"
             >
               Обновить
             </button>
@@ -152,15 +160,15 @@ export default function SettingsPage() {
             <p className="text-sm opacity-70">Доставок пока нет.</p>
           ) : (
             deliveries.map((d) => (
-              <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+              <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border p-3 text-sm">
                 <span className="break-all">
                   {new Date(d.createdAt).toLocaleString()} · {d.endpoint.name} · {d.event} ·{" "}
                   <span
                     className={
                       d.status === "FAILED"
-                        ? "font-semibold text-red-600 dark:text-red-500"
+                        ? "font-semibold text-red-700 dark:text-red-400"
                         : d.status === "DELIVERED"
-                          ? "text-green-700 dark:text-green-500"
+                          ? "text-green-800 dark:text-green-400"
                           : "font-semibold"
                     }
                   >
@@ -170,7 +178,7 @@ export default function SettingsPage() {
                   {d.responseStatus ? ` · HTTP ${d.responseStatus}` : ""}
                 </span>
                 {d.error && (
-                  <span className="w-full break-all text-xs text-red-600 dark:text-red-500">{d.error}</span>
+                  <span className="w-full break-all text-xs text-red-700 dark:text-red-400">{d.error}</span>
                 )}
               </div>
             ))
@@ -182,12 +190,12 @@ export default function SettingsPage() {
         <section className="flex flex-col gap-4" aria-label="Пользователи">
           <h2 className="font-display text-xl font-extrabold">Пользователи</h2>
           {userError && (
-            <p role="alert" className="rounded-xl border border-red-500/50 p-3 text-sm text-red-600 dark:text-red-500">
+            <p role="alert" className="rounded-sm border border-red-500/50 p-3 text-sm text-red-700 dark:text-red-400">
               {userError}
             </p>
           )}
           {(users ?? []).map((u) => (
-            <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-sm">
+            <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border p-3 text-sm">
               <span className="break-all">
                 {u.name} · {u.email}
               </span>
@@ -200,7 +208,7 @@ export default function SettingsPage() {
                     setUserError(null);
                     if (e.target.value !== u.role) setRole.mutate({ userId: u.id, role: e.target.value as "ADMIN" | "MANAGER" | "VIEWER" });
                   }}
-                  className="rounded-lg border bg-transparent px-2 py-1 text-sm"
+                  className="rounded-sm border bg-transparent px-2 py-1 text-sm"
                 >
                   <option value="ADMIN">ADMIN</option>
                   <option value="MANAGER">MANAGER</option>

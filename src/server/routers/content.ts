@@ -2,7 +2,13 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, editorProcedure, adminProcedure } from "../trpc";
 import { testWebhook, validateWebhookUrl } from "@/lib/webhook";
-import { WEBHOOK_EVENTS, type WebhookEvent } from "@/lib/webhook-outbox";
+import { buildEntrySnapshot } from "@/lib/entry-snapshot";
+import {
+  enqueueWebhooks,
+  kickWebhookDrain,
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+} from "@/lib/webhook-outbox";
 import { mediaCreateIssue } from "@/lib/upload-validation";
 import { validateRedirect } from "@/lib/redirects";
 import { EntryStatus } from "@/lib/entry-status";
@@ -41,10 +47,18 @@ export const blockRouter = createTRPCRouter({
         propsJson: z.string().default("{}"),
       })),
     }))
-    .mutation(async ({ ctx, input }) =>
+    .mutation(async ({ ctx, input }) => {
       // delete + createMany + чтение — одна транзакция: сбой посередине
-      // не должен оставить запись без блоков.
-      ctx.prisma.$transaction(async (tx) => {
+      // не должен оставить запись без блоков. Сохранение блоков — такая же
+      // правка контента, как entry.update: ревизия, activity и вебхук
+      // фиксируются атомарно с новым состоянием страницы.
+      const updated = await ctx.prisma.$transaction(async (tx) => {
+        const entry = await tx.entry.findUnique({
+          where: { id: input.entryId },
+          select: { id: true },
+        });
+        if (!entry) throw new TRPCError({ code: "NOT_FOUND", message: "Запись не найдена" });
+
         await tx.pageBlock.deleteMany({ where: { entryId: input.entryId } });
         if (input.blocks.length) {
           await tx.pageBlock.createMany({
@@ -53,9 +67,42 @@ export const blockRouter = createTRPCRouter({
             })),
           });
         }
-        return tx.pageBlock.findMany({ where: { entryId: input.entryId }, orderBy: { order: "asc" } });
-      }),
-    ),
+        // updatedAt двигает список записей и снимок; include отдаёт новые блоки
+        // и теги для того же снапшота, что строит entry.update.
+        const fresh = await tx.entry.update({
+          where: { id: input.entryId },
+          data: { updatedAt: new Date() },
+          include: { blocks: { orderBy: { order: "asc" } }, tags: { include: { tag: true } } },
+        });
+        const count = await tx.revision.count({ where: { entryId: input.entryId } });
+        await tx.revision.create({
+          data: {
+            entryId: input.entryId,
+            version: count + 1,
+            snapshotJson: buildEntrySnapshot(
+              fresh,
+              fresh.blocks,
+              fresh.tags.flatMap((t) => (t.tag?.name ? [t.tag.name] : [])),
+            ),
+            changeNote: "Обновление блоков",
+            authorId: ctx.user.id,
+          },
+        });
+        await tx.activityLog.create({
+          data: {
+            entryId: input.entryId,
+            userId: ctx.user.id,
+            action: "BLOCKS_UPDATED",
+            comment: "Блоки сохранены",
+          },
+        });
+        await enqueueWebhooks(tx, "entry.updated", fresh);
+        return fresh;
+      });
+      // Сеть — только после коммита, как в entry.update/publish.
+      kickWebhookDrain(ctx.prisma);
+      return updated.blocks;
+    }),
   remove: editorProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>
     ctx.prisma.pageBlock.delete({ where: { id: input.id } }),
   ),
@@ -66,7 +113,7 @@ export const workflowRouter = createTRPCRouter({
     ctx.prisma.workflowStage.findMany({ orderBy: { order: "asc" }, include: { entries: { include: { collection: true } } } }),
   ),
   createStage: adminProcedure
-    .input(z.object({ name: z.string().min(1).max(200), color: z.string().default("#f97316"), targetState: EntryStatus.default("DRAFT") }))
+    .input(z.object({ name: z.string().min(1).max(200), color: z.string().default("#b23a2b"), targetState: EntryStatus.default("DRAFT") }))
     .mutation(async ({ ctx, input }) => {
       const count = await ctx.prisma.workflowStage.count();
       return ctx.prisma.workflowStage.create({ data: { ...input, order: count } });

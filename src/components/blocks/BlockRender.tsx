@@ -46,9 +46,9 @@ function asGalleryImages(v: unknown): GalleryImage[] {
 
 function Hero(p: AnyRecord) {
   return (
-    <section className="rounded-2xl border bg-gradient-to-br from-[#f97316]/10 via-transparent to-transparent p-8 text-center">
+    <section className="rounded-sm border-y-2 border-accent/70 bg-accent/5 p-8 text-center">
       {asString(p.eyebrow) ? (
-        <div className="mb-2 inline-block rounded-full border border-[#f97316]/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#9a3412] dark:text-[#fb923c]">
+        <div className="mb-2 inline-block border border-accent/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent-ink dark:text-accent-soft">
           {asString(p.eyebrow)}
         </div>
       ) : null}
@@ -59,7 +59,7 @@ function Hero(p: AnyRecord) {
       {asString(p.ctaLabel) ? (
         <a
           href={asSafeHref(p.ctaHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-[#c2410c] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#9a3412]"
+          className="mt-5 inline-block rounded-sm bg-accent-strong px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-deep"
         >
           {asString(p.ctaLabel)}
         </a>
@@ -71,11 +71,11 @@ function Hero(p: AnyRecord) {
 function Features(p: AnyRecord) {
   const items = asArray(p.items);
   return (
-    <section className="rounded-2xl border p-6">
+    <section className="rounded-sm border border-ink-950/15 p-6 dark:border-white/15">
       {asString(p.title) ? <h3 className="font-display mb-4 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="grid gap-3 sm:grid-cols-3">
         {items.map((it, i) => (
-          <div key={i} className="rounded-xl border bg-white/60 p-4 dark:bg-white/5">
+          <div key={i} className="rounded-sm border border-ink-950/10 p-4 dark:border-white/10">
             <div className="font-display font-bold">{asString(it.title, `Пункт ${i + 1}`)}</div>
             <div className="mt-1 text-sm opacity-70">{asString(it.text)}</div>
           </div>
@@ -89,18 +89,18 @@ function Features(p: AnyRecord) {
 function Pricing(p: AnyRecord) {
   const plans = asArray(p.plans);
   return (
-    <section className="rounded-2xl border p-6">
+    <section className="rounded-sm border border-ink-950/15 p-6 dark:border-white/15">
       {asString(p.title) ? <h3 className="font-display mb-4 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {plans.map((pl, i) => (
           <div
             key={i}
-            className={`rounded-xl border p-5 ${pl.featured ? "border-[#f97316] ring-1 ring-[#f97316]" : ""}`}
+            className={`rounded-sm border p-5 ${pl.featured ? "border-accent ring-1 ring-accent" : ""}`}
           >
             <div className="flex items-center justify-between">
               <div className="font-display font-bold">{asString(pl.name, `Тариф ${i + 1}`)}</div>
               {pl.featured ? (
-                <span className="rounded-full bg-[#c2410c] px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
+                <span className="rounded-sm bg-accent-strong px-2 py-0.5 text-xs font-semibold text-white">Популярный</span>
               ) : null}
             </div>
             <div className="font-display mt-2 text-2xl font-extrabold">{asString(pl.price)}</div>
@@ -108,7 +108,7 @@ function Pricing(p: AnyRecord) {
             <ul className="mt-3 flex flex-col gap-1 text-sm">
               {asStringArray(pl.features).map((f, j) => (
                 <li key={j} className="flex gap-2">
-                  <span className="text-[#9a3412] dark:text-[#fb923c]" aria-hidden="true">✓</span>
+                  <span className="text-accent-ink dark:text-accent-soft" aria-hidden="true">✓</span>
                   <span>{f}</span>
                 </li>
               ))}
@@ -124,11 +124,11 @@ function Pricing(p: AnyRecord) {
 function Faq(p: AnyRecord) {
   const items = asArray(p.items);
   return (
-    <section className="rounded-2xl border p-6">
+    <section className="rounded-sm border border-ink-950/15 p-6 dark:border-white/15">
       {asString(p.title) ? <h3 className="font-display mb-4 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="flex flex-col gap-2">
         {items.map((it, i) => (
-          <details key={i} className="rounded-xl border px-4 py-2.5" open={i === 0}>
+          <details key={i} className="rounded-sm border px-4 py-2.5" open={i === 0}>
             <summary className="cursor-pointer font-semibold">{asString(it.q, `Вопрос ${i + 1}`)}</summary>
             <p className="mt-1.5 text-sm opacity-75">{asString(it.a)}</p>
           </details>
@@ -141,7 +141,7 @@ function Faq(p: AnyRecord) {
 
 function RichText(p: AnyRecord) {
   return (
-    <section className="rounded-2xl border bg-white/60 p-6 dark:bg-white/5">
+    <section className="rounded-sm border border-ink-950/15 bg-paper-raised/60 p-6 dark:border-white/15 dark:bg-white/[0.03]">
       {asString(p.title) ? <h3 className="font-display mb-3 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="whitespace-pre-line text-sm leading-relaxed print:text-black">
         {asString(p.markdown, "Текст отсутствует")}
@@ -153,12 +153,12 @@ function RichText(p: AnyRecord) {
 function Gallery(p: AnyRecord) {
   const images = asGalleryImages(p.images);
   return (
-    <section className="rounded-2xl border p-6">
+    <section className="rounded-sm border border-ink-950/15 p-6 dark:border-white/15">
       {asString(p.title) ? <h3 className="font-display mb-4 text-xl font-bold">{asString(p.title)}</h3> : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {images.map((img, i) => (
           // eslint-disable-next-line @next/next/no-img-element -- URL приходят из CMS; next/image требует известных доменов и ломает произвольные загрузки.
-          <img key={i} src={img.src} alt={img.alt || `Изображение ${i + 1}`} className="aspect-[4/3] w-full rounded-xl border object-cover" loading="lazy" />
+          <img key={i} src={img.src} alt={img.alt || `Изображение ${i + 1}`} className="aspect-[4/3] w-full rounded-sm border object-cover" loading="lazy" />
         ))}
       </div>
       {images.length === 0 ? <div className="text-sm opacity-60">Нет изображений</div> : null}
@@ -168,14 +168,14 @@ function Gallery(p: AnyRecord) {
 
 function Code(p: AnyRecord) {
   return (
-    <section className="overflow-hidden rounded-2xl border">
-      <div className="flex items-center justify-between border-b bg-black/5 px-4 py-2 dark:bg-white/5">
+    <section className="overflow-hidden rounded-sm border border-ink-950/15 dark:border-white/15">
+      <div className="flex items-center justify-between border-b bg-ink-950/5 px-4 py-2 dark:bg-white/5">
         <span className="text-xs font-semibold">{asString(p.title, "Код")}</span>
-        <span className="rounded bg-[#f97316]/15 px-2 py-0.5 font-mono text-xs text-[#9a3412] dark:text-[#fb923c]">
+        <span className="rounded bg-accent/15 px-2 py-0.5 font-mono text-xs text-accent-ink dark:text-accent-soft">
           {asString(p.language, "text")}
         </span>
       </div>
-      <pre className="overflow-x-auto bg-black p-4 font-mono text-xs leading-relaxed text-green-200 print:bg-white print:text-black">
+      <pre className="overflow-x-auto bg-ink-950 p-4 font-mono text-xs leading-relaxed text-stone-200 print:bg-white print:text-black">
         {asString(p.code)}
       </pre>
     </section>
@@ -184,13 +184,13 @@ function Code(p: AnyRecord) {
 
 function Cta(p: AnyRecord) {
   return (
-    <section className="rounded-2xl bg-[#c2410c] p-8 text-center text-white">
+    <section className="rounded-sm border-t-4 border-accent bg-ink-950 p-8 text-center text-[#f2ede2]">
       <h3 className="font-display text-2xl font-extrabold">{asString(p.title, "Призыв к действию")}</h3>
       {asString(p.text) ? <p className="mx-auto mt-2 max-w-lg text-sm text-white">{asString(p.text)}</p> : null}
       {asString(p.buttonLabel) ? (
         <a
           href={asSafeHref(p.buttonHref, "#")}
-          className="mt-5 inline-block rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-[#c2410c]"
+          className="mt-5 inline-block rounded-sm bg-paper px-6 py-2.5 text-sm font-bold text-ink-950"
         >
           {asString(p.buttonLabel)}
         </a>
@@ -233,7 +233,7 @@ export default function BlockRender({ type, propsJson }: { type: string; propsJs
       return <Cta {...parsed} />;
     default:
       return (
-        <section className="rounded-2xl border border-dashed p-4 text-sm opacity-70">
+        <section className="rounded-sm border border-dashed p-4 text-sm opacity-70">
           Неизвестный тип блока: {type}
         </section>
       );

@@ -98,7 +98,7 @@ export function CommandPalette() {
         aria-label="Открыть глобальный поиск (Ctrl+K): ⌘K — поиск…"
         aria-haspopup="dialog"
         aria-expanded={false}
-        className="w-full rounded-lg border bg-transparent px-3 py-2 text-left text-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
+        className="w-full rounded-sm border bg-transparent px-3 py-2 text-left text-sm opacity-60 hover:opacity-100 focus-visible:opacity-100"
       >
         ⌘K — поиск…
       </button>
@@ -107,14 +107,14 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-ink-950/40 p-4"
       onClick={() => setOpen(false)}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Глобальный поиск по контенту"
-        className="mt-20 w-full max-w-lg overflow-hidden rounded-2xl border bg-white shadow-xl dark:bg-neutral-900"
+        className="mt-20 w-full max-w-lg overflow-hidden rounded-sm border border-ink-950/20 bg-paper-raised shadow-xl dark:border-white/15 dark:bg-ink-900"
         onClick={(e) => e.stopPropagation()}
       >
         <label htmlFor="command-palette-input" className="sr-only">
@@ -148,15 +148,15 @@ export function CommandPalette() {
               aria-selected={i === clamped}
               onClick={() => go(item.href)}
               onMouseEnter={() => setActive(i)}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-                i === clamped ? "bg-[#f97316]/15" : "hover:bg-black/5 dark:hover:bg-white/10"
+              className={`flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm ${
+                i === clamped ? "bg-accent/15" : "hover:bg-ink-950/5 dark:hover:bg-white/10"
               }`}
             >
-              <span className="rounded bg-black/10 px-1.5 py-0.5 text-[11px] uppercase opacity-70 dark:bg-white/10">
+              <span className="rounded bg-ink-950/10 px-1.5 py-0.5 text-[11px] uppercase opacity-70 dark:bg-white/10">
                 {item.kind}
               </span>
               <span className="truncate">{item.label}</span>
-              <span className="ml-auto shrink-0 text-xs opacity-50">{item.sub}</span>
+              <span className="ml-auto shrink-0 text-xs opacity-60">{item.sub}</span>
             </button>
           ))}
           </div>

@@ -6,7 +6,7 @@ import { trpc } from "@/trpc/client";
 type EntryStatus = "DRAFT" | "IN_REVIEW" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
 
 const btnCls =
-  "rounded-lg border px-3 py-1.5 text-xs hover:border-[#f97316] disabled:opacity-50 whitespace-nowrap";
+  "rounded-sm border px-3 py-1.5 text-xs hover:border-accent disabled:opacity-50 whitespace-nowrap";
 
 export function ExportButton({
   collectionId,
@@ -54,7 +54,7 @@ export function ExportButton({
         {busy ? "Экспорт…" : (label ?? "Экспорт CSV")}
       </button>
       {error && (
-        <span role="alert" aria-live="polite" className="text-xs text-red-600 dark:text-red-500">
+        <span role="alert" aria-live="polite" className="text-xs text-red-700 dark:text-red-400">
           {error}
         </span>
       )}

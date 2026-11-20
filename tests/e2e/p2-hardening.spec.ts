@@ -57,16 +57,24 @@ test("v1: превышение лимита → 429 + Retry-After", async ({ pag
   const key = await createKey(page, `e2e-rl-${Date.now()}`, "READ");
   let limited = false;
   let retryAfter: string | null = null;
-  // Бюджет 240/мин на IP: капаем до 260, чтобы лимит гарантированно сработал
-  // даже с учётом расходов предыдущих тестов с того же IP.
-  for (let i = 0; i < 260; i++) {
-    const res = await page.request.get("/api/v1/posts", { headers: { "x-api-key": key.raw } });
-    if (res.status() === 429) {
-      limited = true;
-      retryAfter = res.headers()["retry-after"];
-      break;
+  // Бюджет — 240 токенов с пополнением 4/с. Последовательные 260 запросов
+  // могут не опустошить ведро: при 6–8 запросах в секунду пополнение успевает
+  // вернуть больше, чем тратит цикл. Шлём пачками по 20 — потребление кратно
+  // выше пополнения, поэтому 429 наступает детерминированно.
+  for (let wave = 0; wave < 20 && !limited; wave++) {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        page.request.get("/api/v1/posts", { headers: { "x-api-key": key.raw } }),
+      ),
+    );
+    for (const res of responses) {
+      if (res.status() === 429) {
+        limited = true;
+        retryAfter = res.headers()["retry-after"];
+        break;
+      }
+      expect(res.status(), `волна ${wave}`).toBe(200);
     }
-    expect(res.status(), `попытка ${i}`).toBe(200);
   }
   expect(limited, "лимит срабатывает").toBe(true);
   expect(Number(retryAfter), "Retry-After в секундах").toBeGreaterThan(0);
@@ -126,7 +134,7 @@ test("коллекция: переименование и описание из 
   await page.goto("/collections");
   await page.getByPlaceholder("Название коллекции").fill(name);
   await page.getByRole("button", { name: "Создать" }).click();
-  const card = page.locator("div.rounded-2xl", { hasText: name });
+  const card = page.getByTestId("collection-card").filter({ hasText: name });
   await expect(card).toBeVisible({ timeout: 15000 });
 
   const slugText = (await card.getByText(/^\/[a-z0-9-]+$/).first().textContent())?.trim();
@@ -139,8 +147,13 @@ test("коллекция: переименование и описание из 
   // slug в форме редактирования — только текст, без поля ввода.
   expect(card.getByLabel("Slug коллекции")).toHaveCount(0);
   await card.getByRole("button", { name: "Сохранить" }).click();
-  await expect(page.locator("div.rounded-2xl", { hasText: newName })).toBeVisible({ timeout: 15000 });
-  const slugAfter = (await page.locator("div.rounded-2xl", { hasText: newName }).getByText(/^\/[a-z0-9-]+$/).first().textContent())?.trim();
+  await expect(page.getByTestId("collection-card").filter({ hasText: newName })).toBeVisible({ timeout: 15000 });
+  const slugAfter = (await page
+    .getByTestId("collection-card")
+    .filter({ hasText: newName })
+    .getByText(/^\/[a-z0-9-]+$/)
+    .first()
+    .textContent())?.trim();
   expect(slugAfter, "slug не изменился").toBe(slugText);
 });
 

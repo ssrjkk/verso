@@ -42,8 +42,31 @@ const WEBHOOK_DELIVERY_SAFE_SELECT = {
 
 function makeDb() {
   const db = {
+    entry: {
+      findUnique: vi.fn(async () => ({ id: "e1" })),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "e1",
+        title: "Запись",
+        status: "DRAFT",
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...data,
+        blocks: [
+          { id: "b1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" },
+        ],
+        tags: [],
+      })),
+    },
+    revision: {
+      count: vi.fn(async () => 2),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "r1", ...data })),
+    },
+    activityLog: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "a1", ...data })),
+    },
     pageBlock: {
-      findMany: vi.fn(async () => []),
+      findMany: vi.fn(async () => [
+        { id: "b1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" },
+      ]),
       deleteMany: vi.fn(async () => ({ count: 0 })),
       createMany: vi.fn(async () => ({ count: 0 })),
       delete: vi.fn(async () => ({ id: "b1" })),
@@ -120,6 +143,7 @@ function makeDb() {
     },
     webhookDelivery: {
       findMany: vi.fn(async () => []),
+      createMany: vi.fn(async () => ({ count: 0 })),
     },
   };
   return { ...db, $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)) };
@@ -141,21 +165,51 @@ describe("block router", () => {
     });
   });
 
-  it("upsertMany: delete + createMany с дефолтами + чтение результата", async () => {
+  it("upsertMany: блоки, ревизия, activity и вебхук — одна транзакция", async () => {
+    (db.webhookEndpoint.findMany as MockFn).mockResolvedValue([
+      { id: "w1", events: "entry.updated" },
+    ]);
     const out = await caller("MANAGER", db).block.upsertMany({
       entryId: "e1",
       blocks: [{ type: "HERO", order: 0 }],
     });
 
-    expect(out).toEqual([]);
+    expect(out).toEqual([
+      { id: "b1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" },
+    ]);
     expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.entry.findUnique).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      select: { id: true },
+    });
     expect(db.pageBlock.deleteMany).toHaveBeenCalledWith({ where: { entryId: "e1" } });
     expect(db.pageBlock.createMany).toHaveBeenCalledWith({
       data: [{ entryId: "e1", type: "HERO", order: 0, isVisible: true, propsJson: "{}" }],
     });
-    expect(db.pageBlock.findMany).toHaveBeenCalledWith({
-      where: { entryId: "e1" },
-      orderBy: { order: "asc" },
+    expect(db.entry.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { updatedAt: expect.any(Date) },
+      include: {
+        blocks: { orderBy: { order: "asc" } },
+        tags: { include: { tag: true } },
+      },
+    });
+    const revision = (db.revision.create as MockFn).mock.calls[0][0] as {
+      data: { version: number; changeNote: string; snapshotJson: string; authorId: string };
+    };
+    expect(revision.data).toMatchObject({
+      version: 3,
+      changeNote: "Обновление блоков",
+      authorId: expect.any(String),
+    });
+    expect(JSON.parse(revision.data.snapshotJson)).toMatchObject({
+      blocks: [{ type: "HERO", order: 0 }],
+    });
+    expect(db.activityLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ entryId: "e1", action: "BLOCKS_UPDATED" }),
+    });
+    expect(db.webhookDelivery.createMany).toHaveBeenCalledWith({
+      data: [{ endpointId: "w1", event: "entry.updated", payloadJson: expect.any(String) }],
     });
   });
 
@@ -177,7 +231,7 @@ describe("workflow router", () => {
   it("createStage: order = count, дефолтный цвет и targetState", async () => {
     (db.workflowStage.count as MockFn).mockResolvedValue(3);
     const out = await caller("ADMIN", db).workflow.createStage({ name: "Новый" });
-    expect(out).toMatchObject({ name: "Новый", order: 3, color: "#f97316", targetState: "DRAFT" });
+    expect(out).toMatchObject({ name: "Новый", order: 3, color: "#b23a2b", targetState: "DRAFT" });
   });
 
   it("createStage: неизвестный targetState отклоняется до записи", async () => {

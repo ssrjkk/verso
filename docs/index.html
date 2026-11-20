@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* The Pudding: белый индекс, typewriter-подписи, chunky serif, цветные рамки-истории */
+  /* The Pudding: бумажный индекс, typewriter-подписи, chunky serif, цветные рамки-истории */
   --paper:#ffffff;--charcoal:#262626;--graphite:#6d6d6d;--ash:#acacac;--ink:#000000;
   --serif:'Playfair Display','Iowan Old Style','Times New Roman',serif;
   --mono:'IBM Plex Mono',Menlo,Consolas,monospace;
@@ -245,10 +245,10 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
     <span class="issue-date">next.js 16 · react 19 · tRPC v11 · prisma 7 · better auth</span>
   </div>
   <h1>Контент с редактурой, а не CRUD.</h1>
-  <p class="intro">Рабочий цикл редакции: коллекции, ревизии, канбан редполитики и headless-выдача. Блоки собираются мышью или с клавиатурой, каждое сохранение остаётся снапшотом, каждый статус — шаг редполитики.</p>
+  <p class="intro">Рабочий цикл редакции: коллекции, ревизии, канбан редполитики и headless-выдача. Схема полей настраивается под отрасль — блог, услуги, товары, недвижимость. Блоки собираются мышью или с клавиатурой, каждое сохранение остаётся снапшотом, каждый статус — шаг редполитики.</p>
   <div class="btnrow">
     <a class="blockbtn lg" href="https://github.com/ssrjkk/verso#readme">Открыть репозиторий ↗</a>
-    <a class="ghostbtn lg" href="#start">Запуск за минуту</a>
+    <a class="ghostbtn lg" href="#start">Запуск на своём сервере</a>
   </div>
   <div class="mockwrap">
     <div class="hero-frame" style="--frame:#00a3a3">
@@ -306,8 +306,8 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
         <p>serious и critical нарушения отсутствуют — проверено автоматическим аудитом.</p>
       </div>
       <div class="fact">
-        <span class="issue-pill">e2e · скриншоты</span>
-        <p>e2e-тесты со скриншотными проверками интерфейса: регрессии видно сразу.</p>
+        <span class="issue-pill">e2e · overflow</span>
+        <p>Скриншоты всех ключевых страниц в 3 вьюпортах и 2 темах; горизонтальный overflow проверяется автоматически.</p>
       </div>
       <div class="fact">
         <span class="issue-pill">контраст ≥ 4.5:1</span>
@@ -343,8 +343,8 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
             <span class="chip">archived</span>
           </div>
         </div>
-        <h3>коллекции</h3>
-        <p class="teaser">Полный жизненный цикл записи: draft → in_review → scheduled → published → archived — и канбан редполитики поверх.</p>
+        <h3>коллекции и поля</h3>
+        <p class="teaser">Схема под отрасль — от цены товара до адреса объекта — и полный жизненный цикл записи: draft → in_review → scheduled → published → archived.</p>
       </article>
 
       <article class="story">
@@ -418,7 +418,7 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
           </div>
         </div>
         <h3>a11y</h3>
-        <p class="teaser">Axe не находит serious и critical; контраст держится не ниже 4.5:1.</p>
+        <p class="teaser">Axe не находит serious и critical; контраст обычного текста держится не ниже 4.5:1.</p>
       </article>
 
     </div>
@@ -440,13 +440,13 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
         <div class="frame" style="--frame:#2f8fff">
           <div class="mock">
             <span class="mtitle">headless api</span>
-            <div class="mcode">GET /api/v1/entries → 200</div>
+            <div class="mcode">GET /api/v1/posts → 200</div>
             <div class="mcode dim">ключ: vrs_live_9f2c…</div>
             <span class="chip">read-ключ видит только published</span>
           </div>
         </div>
         <h3>ключи vrs_live_…</h3>
-        <p class="teaser">Фронтенд забирает записи через GET /api/v1/entries; read-ключ отдаёт только опубликованное — черновики и правки не утекут.</p>
+        <p class="teaser">Фронтенд забирает записи через GET /api/v1/posts; read-ключ отдаёт только опубликованное — черновики и правки не утекут.</p>
       </article>
 
       <article class="story">
@@ -460,7 +460,7 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
           </div>
         </div>
         <h3>SSRF-safe вебхуки</h3>
-        <p class="teaser">Исходящие вебхуки с автоматическими ретраями; адресаты проверяются при сохранении — локальные хосты и приватные диапазоны недоступны.</p>
+        <p class="teaser">Исходящие вебхуки с автоматическими ретраями; адресаты проверяются при сохранении и перед каждой отправкой — локальные хосты и приватные диапазоны недоступны.</p>
       </article>
 
     </div>
@@ -543,9 +543,14 @@ pre{margin:0;padding:16px 18px;font:400 13.5px/1.8 var(--mono);color:var(--charc
       <div class="codebox">
         <div class="codehead"><span>терминал</span><button class="blockbtn" type="button" data-copy>Скопировать</button></div>
         <pre tabindex="0"><code>git clone https://github.com/ssrjkk/verso.git
-cd verso &amp;&amp; npm install &amp;&amp; npm run dev</code></pre>
+cd verso
+cp .env.example .env
+npm ci
+npm run db:migrate
+npm run db:seed
+npm run dev</code></pre>
       </div>
-      <p class="trustline">axe: 0 serious · e2e скриншотные проверки · mit</p>
+      <p class="trustline">axe: 0 serious · e2e overflow · mit</p>
     </div>
   </div>
 </section>

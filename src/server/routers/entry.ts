@@ -14,6 +14,23 @@ import {
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
+// SEO-поля редактируются в панели записи. OG-картинка должна быть абсолютной
+// (её забирают соцсети), канонический URL может быть и путём от корня.
+const absoluteHttpUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "Нужен абсолютный http(s)-URL",
+  });
+const canonicalUrlInput = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((value) => value.startsWith("/") || /^https?:\/\//i.test(value), {
+    message: "URL должен начинаться с http(s):// или /",
+  });
+
 // Свободный slug внутри коллекции: дубль названия получает -2, -3, …,
 // Free slug within a collection: duplicates get -2, -3, ... instead of P2002.
 // Residual races are retried by the caller (see entry.create retry loop).
@@ -171,6 +188,9 @@ export const entryRouter = createTRPCRouter({
         fieldsJson: z.string().max(200_000).optional(),
         seoTitle: z.string().max(200).optional(),
         seoDescription: z.string().max(500).optional(),
+        ogImageUrl: absoluteHttpUrl.nullable().optional(),
+        canonicalUrl: canonicalUrlInput.nullable().optional(),
+        noIndex: z.boolean().optional(),
         // null — явное снятие расписания; undefined — «не трогать».
         scheduledFor: z
           .string()

@@ -4,7 +4,7 @@
 ![Node >= 20.9](https://img.shields.io/badge/node-%3E%3D20.9-339933?logo=node.js&logoColor=white)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![License: MIT](https://img.shields.io/badge/license-MIT-f97316)
+![License: MIT](https://img.shields.io/badge/license-MIT-b23a2b)
 
 **Verso** — редакционный Headless CMS и блочный конструктор страниц.  
 Сделан для команд, которым нужен не «ещё один CRUD», а понятный рабочий цикл: коллекции → записи → ревизии → канбан редполитики → публикация → headless-выдача.
@@ -30,6 +30,30 @@
 | **Планировщик** | `SCHEDULED → PUBLISHED` идемпотентно: `POST /api/cron/publish-due` (Bearer `CRON_SECRET`, fail-closed 503) или опциональный `PUBLISH_DUE_TICK_MS`; outbox добирается тиком каждые 60 с или `POST /api/cron/webhooks` |
 | **Доступ** | Роли `ADMIN` / `MANAGER` / `VIEWER`; signup → `VIEWER`; первый пользователь пустой БД → `ADMIN` атомарно; защита «последний админ» и запрет смены собственной роли в транзакции |
 
+## Дизайн-система
+
+Verso выглядит как редакционный стол, а не SaaS-шаблон: бумага, тушь и киноварь, нумерованные разделы, линейки и списки вместо сетки одинаковых карточек.
+
+| Роль | Гарнитура | Где работает |
+|---|---|---|
+| Display | **Literata** | заголовки, крупные цифры, обложки |
+| Body | **Golos Text** | интерфейс, формы, длинный текст |
+| Meta | **IBM Plex Mono** | индексы, статусы, API, горячие клавиши |
+
+| Токен | Значение | Назначение |
+|---|---|---|
+| `paper` | `#f4f0e6` | основной фон |
+| `paper-raised` | `#fbf8f1` | панели и поднятые поверхности |
+| `paper-sunken` | `#eae4d6` | углублённые блоки и полосы |
+| `ink-950` | `#17150f` | текст и ночной фон |
+| `accent` | `#b23a2b` | киноварь: линии, фокус, акценты |
+| `accent-strong` | `#8f2c1f` | основные кнопки |
+| `accent-soft` | `#e8a58c` | акцент на тёмном фоне |
+| `moss` | `#4f5d45` | структурные рамки |
+| `ochre` | `#a97924` | вторая краска |
+
+Правила: карточки и контролы — `rounded-sm`; пилюли остаются только у статусов; фокус — кольцо киновари 2px; светлый текст — `stone-600`, тёмные панели — `stone-300/400`. Градиенты допустимы только функциональные (сетка лендинга и shimmer скелетона), не декоративные. Шрифты подключаются через `next/font` и собираются в self-hosted бандл, без внешнего CDN. Те же токены использует статическая витрина [`docs/index.html`](docs/index.html). Решение и цена — в ADR 23 в [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
 ## Безопасность и надёжность (реализовано, не «планируется»)
 
 - **Auth/roles:** роль не принимается от клиента; серверные guard’ы в tRPC (`protected`/`editor`/`admin`); UI не является границей доверия.
@@ -40,7 +64,7 @@
 - **Редиректы:** относительные безопасные пути, запрет open-redirect/циклов/длинных цепочек, исполнение в `src/proxy.ts`.
 - **Планировщик:** условный статусный флип в транзакции → параллельный запуск даёт ровно 1 ревизию / 1 вебхук на запись.
 - **Outbox вебхуков:** событие пишется в транзакции контента, claim/lease не даёт отправить строку дважды при параллельных тиках и инстансах; backoff хранится в БД и переживает рестарт. Гарантия at-least-once — получатель должен быть идемпотентным.
-- **A11y:** проверка axe `0 serious/critical` на ключевых страницах в light/dark, контраст ≥ 4.5:1 для обычного текста, видимое фокус-кольцо, клавиатурные сценарии (в т.ч. DnD), скриншотные проверки в e2e.
+- **A11y:** проверка axe `0 serious/critical` на ключевых страницах в light/dark, контраст ≥ 4.5:1 для обычного текста, видимое фокус-кольцо, клавиатурные сценарии (в т.ч. DnD). В e2e снимаются скриншоты 12 страниц в 3 вьюпортах и 2 темах; автоматически проверяется горизонтальный overflow, снимки остаются артефактом для ревью, а не «визуальным диффом».
 - **Базовые headers:** `nosniff`, `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN` (+ `sandbox` для uploads), `poweredByHeader: false`.
 - **SQLite:** миграции с baseline вместо `db push`, индексы под горячие запросы, `WAL` + `synchronous=NORMAL` + `foreign_keys=ON` + `busy_timeout=5000`; backup/restore и обновление — в [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
@@ -111,7 +135,7 @@ npm run dev         # http://localhost:3000
 | `npm run typecheck` | `tsc --noEmit` (с `prisma generate` в pre-hook) |
 | `npm test` | Vitest (unit/integration) |
 | `npm run test:e2e` | Playwright (e2e, свой `e2e.db`, fresh-build guard) |
-| `npm run test:all` | **Полный гейт:** typecheck + vitest + build + e2e (как в CI) |
+| `npm run test:all` | **Полный гейт:** lint + typecheck + coverage + build + e2e (как в CI) |
 | `npm run db:migrate` | `prisma migrate deploy` — применить миграции (dev/prod/CI) |
 | `npm run db:migrate:dev` | `prisma migrate dev` — создать миграцию локально |
 | `npm run db:migrate:check` | Проверка drift: миграции должны совпадать со `schema.prisma` |
@@ -121,8 +145,8 @@ npm run dev         # http://localhost:3000
 
 ## Тестирование и CI
 
-- **Vitest:** 58 файлов / 602 теста (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, health/rate-limit/client-ip/SSRF/redirect/scheduler/auth/upload контракты).
-- **Playwright:** 39 e2e-файлов / 84 теста, включая axe-проверки доступности и визуальные/overflow сценарии.
+- **Vitest:** 59 файлов / 629 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, health/rate-limit/client-ip/SSRF/redirect/scheduler/auth/upload контракты).
+- **Playwright:** 40 файлов / 86 тестов, включая 3 шага auth setup (39 файлов сценариев / 83 сценария): axe-проверки доступности, скриншоты с overflow-контролем, клавиатурный DnD.
 - **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npx prisma migrate deploy` → `npm run db:migrate:check` → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`. Локально воспроизводится тем же `npm run test:all` (e2e сам поднимает `e2e.db` миграциями).
 
 ## Структура (ориентир)
