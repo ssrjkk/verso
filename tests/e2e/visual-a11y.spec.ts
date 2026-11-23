@@ -44,6 +44,20 @@ async function themedPage(
   return { ctx, page: await ctx.newPage() };
 }
 
+/** Цвет, которым тема обязана рисовать кольцо фокуса (:focus-visible в globals.css).
+ *  Берём из самого токена, иначе гейт ловит переименование палитры вместо «кольца нет». */
+async function focusRingColor(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const dark = document.documentElement.classList.contains("dark");
+    const probe = document.createElement("div");
+    probe.style.color = `var(--color-${dark ? "accent-soft" : "accent"})`;
+    document.body.appendChild(probe);
+    const rgb = getComputedStyle(probe).color;
+    probe.remove();
+    return rgb;
+  });
+}
+
 async function settle(page: Page) {
   // Контент отрисован: первый заголовок виден (скелетоны уже сменились).
   await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 15000 });
@@ -183,11 +197,14 @@ test.describe.serial("visual: состояния, клавиатура, диал
     }
   });
 
-  test("клавиатура: Tab-порядок, фокус-кольцо киновари", async ({ browser }) => {
+  test("клавиатура: Tab-порядок, фокус-кольцо цвета темы", async ({ browser }) => {
     const { ctx, page } = await themedPage(browser, "light", { w: 1440, h: 900 }, ADMIN);
     try {
       await page.goto("/board", { waitUntil: "domcontentloaded" });
       await settle(page);
+
+      const ring = await focusRingColor(page);
+      expect(ring, "--color-accent резолвится в цвет").toMatch(/^rgb/);
 
       const focused: string[] = [];
       let ringOk = false;
@@ -211,14 +228,14 @@ test.describe.serial("visual: состояния, клавиатура, диал
         if (!info) break;
         focused.push(`${info.tag}:${info.label}`);
         expect(info.visible, `таб ${i}: сфокусированное видимо`).toBe(true);
-        if (info.outline === "rgb(178, 58, 43)" || info.ring.includes("178, 58, 43")) {
+        if (info.outline === ring || info.ring.includes(ring)) {
           ringOk = true;
         }
       }
       expect(focused.length, "порядок содержит контролы").toBeGreaterThanOrEqual(8);
       // Порядок начинается с навигации/управления, карточки досок достижимы.
       expect(focused.some((f) => f.startsWith("A:") || f.startsWith("BUTTON:")), "ссылки/кнопки в порядке").toBe(true);
-      expect(ringOk, "фокус-кольцо киновари встречается").toBe(true);
+      expect(ringOk, `фокус-кольцо ${ring} встречается; порядок: ${focused.join(" | ")}`).toBe(true);
     } finally {
       await ctx.close();
     }
