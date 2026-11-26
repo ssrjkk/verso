@@ -1,11 +1,5 @@
 # Verso
 
-[![CI](https://github.com/ssrjkk/verso/actions/workflows/ci.yml/badge.svg)](https://github.com/ssrjkk/verso/actions/workflows/ci.yml)
-![Node >= 20.9](https://img.shields.io/badge/node-%3E%3D20.9-339933?logo=node.js&logoColor=white)
-![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![License: MIT](https://img.shields.io/badge/license-MIT-b23a2b)
-
 **Verso** — редакционный Headless CMS и блочный конструктор страниц.  
 Сделан для команд, которым нужен не «ещё один CRUD», а понятный рабочий цикл: коллекции → записи → ревизии → канбан редполитики → публикация → headless-выдача.
 
