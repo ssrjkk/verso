@@ -180,6 +180,14 @@ describe("entry field values", () => {
     expect(feb31.ok).toBe(false);
   });
 
+  it("отклоняет длинный email без запуска дорогого regex", () => {
+    const result = validateEntryFieldValues(
+      [{ key: "mail", label: "Почта", type: "email", required: false }],
+      JSON.stringify({ mail: `!@!.${"!.".repeat(20000)}` }),
+    );
+    expect(result.ok).toBe(false);
+  });
+
   it("нечисловая цена и чужая опция списка отклоняются", () => {
     const result = validateEntryFieldValues(
       schema,

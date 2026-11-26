@@ -35,6 +35,10 @@ export const FIELD_TYPE_LABELS: Record<CollectionFieldType, string> = {
 const FIELD_KEY_RE = /^[a-z][a-z0-9_]{0,39}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isValidEmail(value: string): boolean {
+  return value.length <= 254 && EMAIL_RE.test(value);
+}
+
 // Системные поля записи нельзя дублировать в fieldsJson: это путает
 // Headless-клиентов, CSV-колонки и восстановление из ревизий.
 const RESERVED_FIELD_KEYS = new Set([
@@ -271,7 +275,7 @@ function validateOne(
       }
     }
     case "email":
-      return typeof value === "string" && EMAIL_RE.test(value)
+      return typeof value === "string" && isValidEmail(value)
         ? { ok: true, value }
         : { ok: false, error: `${label}: некорректный email` };
   }
