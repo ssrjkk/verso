@@ -1,180 +1,88 @@
 # Verso
 
-**Verso** — редакционный Headless CMS и блочный конструктор страниц.  
-Сделан для команд, которым нужен не «ещё один CRUD», а понятный рабочий цикл: коллекции → записи → ревизии → канбан редполитики → публикация → headless-выдача.
+> **Languages:** [English](README.md) · [Русский](README.ru.md)
 
-> Стек: **Next.js 16 (App Router)** · **React 19** · **tRPC v11** · **Prisma 7 + SQLite** · **Better Auth** · **Tailwind CSS v4** · **dnd-kit** · **Zod** · **Vitest** · **Playwright + axe**
+Editorial headless CMS and block page builder for teams that need a complete
+workflow: collections, entries, revisions, editorial board, scheduling and headless
+delivery. The full Russian documentation is in [README.ru.md](README.ru.md).
 
----
+**Site:** https://ssrjkk.github.io/verso/  
+**Source:** https://github.com/ssrjkk/verso
 
-**Сайт:** https://ssrjkk.github.io/verso/
+## Screenshot
 
-## Скриншоты
+![Verso](docs/screenshots/home.jpg)
 
-Сняты с опубликованного сайта в настоящем браузере (Chrome, 1440×900 и 390×844).
+## Features
 
-| Главная | Разделы |
-| --- | --- |
-| <img src="docs/screenshots/home.jpg" width="420" alt="Verso — главная страница"> | <img src="docs/screenshots/content.jpg" width="420" alt="Verso — разделы сайта"> |
+- Entry statuses: `DRAFT`, `IN_REVIEW`, `SCHEDULED`, `PUBLISHED`, `ARCHIVED`.
+- Per-collection field schemas with dynamic forms and server-side validation.
+- Block page builder with keyboard-accessible drag-and-drop.
+- Editorial Kanban board, revision snapshots and one-click rollback.
+- Media uploads with magic-byte checks, UUID filenames and sandboxed delivery.
+- SEO redirects with path, chain and cycle validation.
+- Publication calendar and idempotent scheduled publishing.
+- Headless API with scoped API keys and rate limits.
+- Transactional webhook outbox with retries and SSRF-safe delivery.
+- ADMIN, MANAGER and VIEWER roles with last-admin protection.
 
-<p align="center"><img src="docs/screenshots/mobile.jpg" width="320" alt="Verso — мобильная версия"></p>
+## Quick start
 
-## Возможности
-
-| Модуль | Что есть |
-|---|---|
-| **Контент** | Коллекции и записи со статусами `DRAFT → IN_REVIEW → SCHEDULED → PUBLISHED → ARCHIVED`, теги, поиск/фильтры |
-| **Гибкие поля** | Схема полей на коллекцию (текст, число, дата, список, флажок, URL, email) + 8 отраслевых шаблонов; динамическая форма, колонки таблицы и CSV, блок «Детали» на публичной странице и серверная валидация в tRPC/Headless API |
-| **Конструктор** | Блочный page builder (HERO, FEATURES, PRICING, FAQ, RICH_TEXT, GALLERY, CODE, CTA) с drag-and-drop на dnd-kit (мышь + клавиатура) |
-| **Редполитика** | Канбан `/board`: перетаскивание карточек между этапами меняет статус; доступна клавиатурная работа |
-| **Ревизии** | Снапшоты изменений и откат в 1 клик |
-| **Медиа** | Загрузка с проверкой magic bytes, случайные имена на диске, ограничение типов/размера, безопасная отдача (`nosniff` + `sandbox` для `/uploads`) |
-| **SEO** | Редиректы (301/302), исполняемые в proxy до рендера; валидация путей/цепочек/циклов; атомарный счётчик hits |
-| **Календарь** | Задачи и планирование публикаций |
-| **Headless API** | `GET /api/v1/[collection]` по API-ключу (`x-api-key` или `Authorization: Bearer`, ключи формата `vrs_live_…`); READ-ключ видит только `PUBLISHED` |
-| **Вебхуки** | `entry.published`, `entry.updated` — транзакционный outbox: событие фиксируется вместе с записью, доставка с lease, exponential backoff и at-least-once; SSRF-безопасная, с сохранением статуса последней доставки |
-| **Планировщик** | `SCHEDULED → PUBLISHED` идемпотентно: `POST /api/cron/publish-due` (Bearer `CRON_SECRET`, fail-closed 503) или опциональный `PUBLISH_DUE_TICK_MS`; outbox добирается тиком каждые 60 с или `POST /api/cron/webhooks` |
-| **Доступ** | Роли `ADMIN` / `MANAGER` / `VIEWER`; signup → `VIEWER`; первый пользователь пустой БД → `ADMIN` атомарно; защита «последний админ» и запрет смены собственной роли в транзакции |
-
-## Дизайн-система
-
-Verso выглядит как редакционный стол, а не SaaS-шаблон: бумага, тушь и киноварь, нумерованные разделы, линейки и списки вместо сетки одинаковых карточек.
-
-| Роль | Гарнитура | Где работает |
-|---|---|---|
-| Display | **Literata** | заголовки, крупные цифры, обложки |
-| Body | **Golos Text** | интерфейс, формы, длинный текст |
-| Meta | **IBM Plex Mono** | индексы, статусы, API, горячие клавиши |
-
-| Токен | Значение | Назначение |
-|---|---|---|
-| `paper` | `#f4f0e6` | основной фон |
-| `paper-raised` | `#fbf8f1` | панели и поднятые поверхности |
-| `paper-sunken` | `#eae4d6` | углублённые блоки и полосы |
-| `ink-950` | `#17150f` | текст и ночной фон |
-| `accent` | `#b23a2b` | киноварь: линии, фокус, акценты |
-| `accent-strong` | `#8f2c1f` | основные кнопки |
-| `accent-soft` | `#e8a58c` | акцент на тёмном фоне |
-| `moss` | `#4f5d45` | структурные рамки |
-| `ochre` | `#a97924` | вторая краска |
-
-Правила: карточки и контролы — `rounded-sm`; пилюли остаются только у статусов; фокус — кольцо киновари 2px; светлый текст — `stone-600`, тёмные панели — `stone-300/400`. Градиенты допустимы только функциональные (сетка лендинга и shimmer скелетона), не декоративные. Шрифты подключаются через `next/font` и собираются в self-hosted бандл, без внешнего CDN. Те же токены использует статическая витрина [`docs/index.html`](docs/index.html). Решение и цена — в ADR 23 в [`docs/DECISIONS.md`](docs/DECISIONS.md).
-
-## Безопасность и надёжность (реализовано, не «планируется»)
-
-- **Auth/roles:** роль не принимается от клиента; серверные guard’ы в tRPC (`protected`/`editor`/`admin`); UI не является границей доверия.
-- **Вебхуки:** только `http(s)`, запрет private/loopback/link-local/metadata по DNS+IP, переподключение к проверенному IP, ручные редиректы с перепроверкой, таймаут, без чтения тела. Флаг `WEBHOOK_ALLOW_PRIVATE=1` — только тестовый стенд; в прод-конфигурации процесс падает fail-fast.
-- **API:** ключи только в заголовках (никакого `?key=`), `lastUsedAt` с троттлингом, token-bucket лимиты (`/api/v1/*` и `/api/upload`, `429` + `Retry-After`); карта ведер ограничена 10k, чтобы флуд уникальных IP не раздувал память; IP клиента за прокси берётся из доверенного конца `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`).
-- **Поля коллекций:** схема проверяется при записи (tRPC и Headless API), значения — по типам и обязательности; клиентская форма не является границей доверия, неизвестные ключи сохраняются для эволюции схемы.
-- **Загрузки:** magic bytes, управляемые пути `/uploads/<folder>/<uuid>.<ext>`, реальные размеры; `media.create` не принимает произвольный URL/mime/size.
-- **Редиректы:** относительные безопасные пути, запрет open-redirect/циклов/длинных цепочек, исполнение в `src/proxy.ts`.
-- **Планировщик:** условный статусный флип в транзакции → параллельный запуск даёт ровно 1 ревизию / 1 вебхук на запись.
-- **Outbox вебхуков:** событие пишется в транзакции контента, claim/lease не даёт отправить строку дважды при параллельных тиках и инстансах; backoff хранится в БД и переживает рестарт. Гарантия at-least-once — получатель должен быть идемпотентным.
-- **A11y:** проверка axe `0 serious/critical` на ключевых страницах в light/dark, контраст ≥ 4.5:1 для обычного текста, видимое фокус-кольцо, клавиатурные сценарии (в т.ч. DnD). В e2e снимаются скриншоты 12 страниц в 3 вьюпортах и 2 темах; автоматически проверяется горизонтальный overflow, снимки остаются артефактом для ревью, а не «визуальным диффом».
-- **Базовые headers:** `nosniff`, `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN` (+ `sandbox` для uploads), `poweredByHeader: false`.
-- **SQLite:** миграции с baseline вместо `db push`, индексы под горячие запросы, `WAL` + `synchronous=NORMAL` + `foreign_keys=ON` + `busy_timeout=5000`; backup/restore и обновление — в [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
-
-Подробности и компромиссы — в [`docs/DECISIONS.md`](docs/DECISIONS.md) (проблема → решение → почему → цена).
-
-## Быстрый старт
-
-Требования: **Node.js >= 20.9** (проверено на Node 22).
+Node.js 20.9 or newer is required.
 
 ```bash
 cp .env.example .env
-npm ci              # или npm install
-npm run db:migrate  # применить миграции Prisma
-npm run db:seed     # демо-данные и пользователи
-npm run dev         # http://localhost:3000
+npm ci
+npm run db:migrate
+npm run db:seed
+npm run dev
 ```
 
-Демо-аккаунты (создаются сидом), пароль **`Test12345!`**:
+Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and the application URLs.
+Production requires a real auth secret; test-only switches are documented in
+`.env.example` and must not be enabled in production.
 
-| Email | Роль |
-|---|---|
-| `admin@verso.dev` | ADMIN |
-| `editor@verso.dev` | MANAGER |
-| `viewer@verso.dev` | VIEWER |
+## Checks
 
-## Переменные окружения
-
-См. [`.env.example`](.env.example). Ключевые:
-
-| Переменная | Назначение |
-|---|---|
-| `DATABASE_URL` | SQLite, по умолчанию `file:./prisma/dev.db` |
-| `BETTER_AUTH_SECRET` | Секрет auth: в проде обязателен, ≥32 символов, без `change-me`/`test`/`demo` (`openssl rand -base64 32`) |
-| `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL` | Базовые URL приложения |
-| `TRUSTED_ORIGINS` | Доп. origin через запятую (опционально) |
-| `TRUSTED_PROXY_HOPS` | Число reverse proxy перед приложением для разбора `X-Forwarded-For` (по умолчанию `1`; `0` — прямое подключение) |
-| `CRON_SECRET` | Bearer-секрет для `POST /api/cron/publish-due` и `/api/cron/webhooks` (без него маршруты отдают **503**) |
-| `PUBLISH_DUE_TICK_MS` | Интервал самопубликации, мс (опционально; по умолчанию выключен) |
-| `WEBHOOK_DRAIN_TICK_MS` | Интервал доставки outbox, мс (по умолчанию `60000`; `0` выключает тик) |
-| `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_BASE_BACKOFF_MS`, `WEBHOOK_LEASE_MS`, `WEBHOOK_DRAIN_BATCH` | Настройки повторов и пачки outbox (по умолчанию 8 попыток, 60 с, 10 мин, 50) |
-| `WEBHOOK_RETENTION_DAYS` | Сколько дней хранить `DELIVERED`/`FAILED` (по умолчанию 30; `0` — бессрочно) |
-| `AUTH_RATELIMIT=off` | **Только e2e/throwaway-БД:** отключает rate-limit входов (проверку секрета не ослабляет) |
-| `VERSO_TEST_HARNESS=1` | **Только e2e/throwaway-БД:** разрешает короткий/демо-секрет и `WEBHOOK_ALLOW_PRIVATE`; в проде небезопасен |
-| `WEBHOOK_ALLOW_PRIVATE=1` | **Только e2e** (требует `VERSO_TEST_HARNESS=1`); в прод-конфигурации — fail-fast |
-| `SEED_ALLOW=1` | **Только throwaway-инстанс:** разрешает `npm run db:seed` с демо-паролем на production |
-
-## API / интеграции
-
-- **Headless read:** `GET /api/v1/{collection}`  
-  Заголовок: `x-api-key: vrs_live_…` (или `Authorization: Bearer ...`). READ-ключ возвращает только опубликованные записи. Лимит запросов применяется; при превышении — `429` + `Retry-After`.
-- **Headless create:** `POST /api/v1/{collection}`  
-  Нужен ключ со scope `READ_WRITE`; тело `{ title, slug?, excerpt?, fieldsJson? }`. `fieldsJson` проверяется схемой коллекции (обязательные поля, типы, варианты списка); при ошибке — `400 {"error":"Invalid fields","message":"…","details":{"key":"…"}}`. Пустая схема сохраняет произвольный JSON-объект для обратной совместимости.
-- **Cron publish:** `POST /api/cron/publish-due`  
-  Заголовок: `Authorization: Bearer ${CRON_SECRET}`. Идемпотентно публикует просроченные `SCHEDULED`.
-- **Cron webhooks:** `POST /api/cron/webhooks`
-  Тот же Bearer-секрет. Добирает созревшие доставки outbox и возвращает `{claimed, delivered, retried, failed, pruned}`.
-- **Webhooks:** события `entry.published`, `entry.updated`; доставка at-least-once из транзакционного outbox, статусы и ошибки последней попытки сохраняются (без логирования секретов/приватных адресов в пользовательском UI). ADMIN видит последние доставки в настройках: статус, число попыток, HTTP-код и текст ошибки (payload и секреты не отдаются).
-- **Health:** `GET /api/health` — проба для балансировщика/uptime-монитора. Отвечает `200 {"status":"ok","checks":{"database":"ok"}}`, если SQLite доступна, и `503 {"status":"degraded","checks":{"database":"down"}}` без деталей ошибки. `Cache-Control: no-store`.
-- **Sitemap:** `/sitemap.xml` (канонический) и совместимый `/api/sitemap.xml`; `robots.txt` запрещает приватные разделы.
-
-## Скрипты
-
-| Команда | Что делает |
-|---|---|
-| `npm run dev` | Dev-сервер (с `prisma generate` в pre-hook) |
-| `npm run build` | `prisma generate` + production build |
-| `npm run start` | Запуск production-сборки |
-| `npm run typecheck` | `tsc --noEmit` (с `prisma generate` в pre-hook) |
-| `npm test` | Vitest (unit/integration) |
-| `npm run test:e2e` | Playwright (e2e, свой `e2e.db`, fresh-build guard) |
-| `npm run test:all` | **Полный гейт:** lint + typecheck + coverage + build + e2e (как в CI) |
-| `npm run db:migrate` | `prisma migrate deploy` — применить миграции (dev/prod/CI) |
-| `npm run db:migrate:dev` | `prisma migrate dev` — создать миграцию локально |
-| `npm run db:migrate:check` | Проверка drift: миграции должны совпадать со `schema.prisma` |
-| `npm run db:push` | Быстрая синхронизация схемы **только для экспериментов**; не для CI/деплоя |
-| `npm run db:seed` | Сид демо-данных (с `prisma generate` в pre-hook; на production требует `SEED_ALLOW=1`) |
-| `npm run db:studio` | Prisma Studio |
-
-## Тестирование и CI
-
-- **Vitest:** 59 файлов / 629 тестов (в т.ч. интеграции на реальном SQLite, миграции/PRAGMA, outbox/ретраи, health/rate-limit/client-ip/SSRF/redirect/scheduler/auth/upload контракты).
-- **Playwright:** 40 файлов / 86 тестов, включая 3 шага auth setup (39 файлов сценариев / 83 сценария): axe-проверки доступности, скриншоты с overflow-контролем, клавиатурный DnD.
-- **CI (GitHub Actions):** `npm ci` → Playwright Chromium → `npx prisma migrate deploy` → `npm run db:migrate:check` → `npm run test:all` на `ubuntu-latest` (Node 22), с `concurrency` и минимальными `permissions`. Локально воспроизводится тем же `npm run test:all` (e2e сам поднимает `e2e.db` миграциями).
-
-## Структура (ориентир)
-
-```text
-src/
-  app/                 # App Router: (auth), (dashboard), api/*, robots, sitemap, boundaries
-  components/          # UI, блоки конструктора, dashboard-компоненты
-  lib/                 # prisma/prisma-client, auth, roles, webhook, webhook-outbox, redirects, publish-due, upload, rate-limit
-  server/              # tRPC routers + context/procedures
-  proxy.ts             # auth + SEO redirects (до рендера)
-  instrumentation.ts   # тики publishDue и доставки outbox
-prisma/                # schema, seed, migrations, config
-tests/                 # vitest + e2e (playwright)
-docs/DECISIONS.md      # ADR-журнал
-docs/DEPLOYMENT.md     # деплой, backup/restore, обновление SQLite
+```bash
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+npm run e2e
 ```
 
-## Решения и компромиссы
+## API
 
-Архитектурные решения зафиксированы в [`docs/DECISIONS.md`](docs/DECISIONS.md): для каждого пункта — **проблема → решение → почему → цена** (роли/bootstrap, вебхуки/SSRF, транзакционный outbox, редиректы, планировщик, headless-лимиты, загрузки/magic bytes, a11y/контраст, воспроизводимая установка, демо-доступы и инварианты публикации).
+- `GET /api/v1/{collection}` returns published entries for a read key.
+- `POST /api/v1/{collection}` requires a `READ_WRITE` key.
+- `POST /api/cron/publish-due` publishes due entries.
+- `POST /api/cron/webhooks` drains pending outbox deliveries.
 
-## Лицензия
+API keys belong in headers, never query strings. Cron routes require
+`Authorization: Bearer ${CRON_SECRET}`.
 
-[MIT](LICENSE) © 2026 Verso contributors
+## Stack
+
+Next.js 16, React 19, TypeScript, Tailwind CSS v4, tRPC, Prisma, SQLite, Better Auth,
+dnd-kit, Zod, Vitest, Playwright and axe.
+
+## Security
+
+- Server-side authorization guards and scoped API keys.
+- DNS and IP checks for webhook destinations, including redirects.
+- Controlled upload paths, MIME checks and size limits.
+- Idempotent scheduling and transactional outbox.
+- SQLite WAL, foreign keys, migrations and backup/restore tooling.
+- Accessibility and security-header checks in E2E.
+
+## Documentation
+
+- [Russian README](README.ru.md)
+- [Architecture decisions](docs/DECISIONS.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [Security policy](SECURITY.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
