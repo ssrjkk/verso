@@ -6,7 +6,12 @@ Editorial headless CMS and block page builder for teams that need a complete
 workflow: collections, entries, revisions, editorial board, scheduling and headless
 delivery. The full Russian documentation is in [README.ru.md](README.ru.md).
 
-**Site:** https://ssrjkk.github.io/verso/
+**Site:** https://ssrjkk.github.io/verso/  
+**Source:** https://github.com/ssrjkk/verso
+
+## Screenshot
+
+![Verso](docs/screenshots/home.jpg)
 
 ## Features
 
